@@ -2,25 +2,40 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../Dashboard.css';
 
-
 const StudentDashboard = () => {
   const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState('overview');
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is logged in
-    const token = localStorage.getItem('token');
-    const userRole = localStorage.getItem('userRole');
-    const storedUserData = localStorage.getItem('userData');
+    // Check if auth bypass is enabled
+    const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
+    
+    if (bypassAuth) {
+      // Mock user data for development
+      setUserData({
+        name: 'John Doe',
+        universityId: 'STU001',
+        email: 'john.doe@university.edu',
+        role: 'student'
+      });
+      setLoading(false);
+    } else {
+      // Check if user is logged in
+      const token = localStorage.getItem('token');
+      const userRole = localStorage.getItem('userRole');
+      const storedUserData = localStorage.getItem('userData');
 
-    if (!token || userRole !== 'student') {
-      navigate('/student/login');
-      return;
-    }
+      if (!token || userRole !== 'student') {
+        navigate('/student/login');
+        return;
+      }
 
-    if (storedUserData) {
-      setUserData(JSON.parse(storedUserData));
+      if (storedUserData) {
+        setUserData(JSON.parse(storedUserData));
+      }
+      setLoading(false);
     }
   }, [navigate]);
 
@@ -31,7 +46,159 @@ const StudentDashboard = () => {
     navigate('/');
   };
 
-  if (!userData) {
+  // Section rendering functions
+  const renderOverview = () => (
+    <div>
+      <h3>Student Overview</h3>
+      <p>Welcome to your dashboard, {userData?.name}!</p>
+      <div className="overview-stats">
+        <div className="stat-card">
+          <h4>Enrolled Courses</h4>
+          <p>3</p>
+        </div>
+        <div className="stat-card">
+          <h4>Completed Assignments</h4>
+          <p>12</p>
+        </div>
+        <div className="stat-card">
+          <h4>Pending Doubts</h4>
+          <p>2</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderEnrolledCourses = () => (
+    <div>
+      <h3>Enrolled Courses</h3>
+      <p>View all your enrolled courses</p>
+      <div className="course-list">
+        <div className="course-card">
+          <h4>Mathematics 101</h4>
+          <p>Progress: 75%</p>
+        </div>
+        <div className="course-card">
+          <h4>Physics 201</h4>
+          <p>Progress: 60%</p>
+        </div>
+        <div className="course-card">
+          <h4>Chemistry 301</h4>
+          <p>Progress: 90%</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAvailableCourses = () => (
+    <div>
+      <h3>Available Courses</h3>
+      <p>Discover new courses to enroll in</p>
+      <div className="course-list">
+        <div className="course-card">
+          <h4>Advanced Calculus</h4>
+          <p>Instructor: Dr. Johnson | Duration: 12 weeks</p>
+          <button className="primary-btn">Enroll Now</button>
+        </div>
+        <div className="course-card">
+          <h4>Data Structures</h4>
+          <p>Instructor: Prof. Davis | Duration: 16 weeks</p>
+          <button className="primary-btn">Enroll Now</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderClasses = () => (
+    <div>
+      <h3>My Classes</h3>
+      <p>View your upcoming and past classes</p>
+      <div className="class-list">
+        <div className="class-item">
+          <h4>Mathematics - Integration</h4>
+          <p>Today, 10:00 AM | Room: 101</p>
+        </div>
+        <div className="class-item">
+          <h4>Physics - Mechanics</h4>
+          <p>Tomorrow, 2:00 PM | Room: 205</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAllDoubts = () => (
+    <div>
+      <h3>All Doubts</h3>
+      <p>View all your submitted questions</p>
+      <div className="doubt-list">
+        <div className="doubt-item">
+          <h4>Question about Integration by Parts</h4>
+          <p>Subject: Mathematics | Status: Pending</p>
+        </div>
+        <div className="doubt-item answered">
+          <h4>Physics Lab Equipment</h4>
+          <p>Subject: Physics | Status: Answered</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAnsweredDoubts = () => (
+    <div>
+      <h3>Answered Doubts</h3>
+      <p>Your questions that have been answered</p>
+      <div className="doubt-list">
+        <div className="doubt-item answered">
+          <h4>Chemistry Equation Balancing</h4>
+          <p>Answered by: Dr. Smith | Yesterday</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAskDoubt = () => (
+    <div>
+      <h3>Ask a Question</h3>
+      <p>Submit your doubts and get help from teachers</p>
+      <form className="create-form">
+        <select>
+          <option>Select Subject</option>
+          <option>Mathematics</option>
+          <option>Physics</option>
+          <option>Chemistry</option>
+        </select>
+        <input type="text" placeholder="Question Title" />
+        <textarea placeholder="Describe your doubt in detail"></textarea>
+        <button type="submit" className="primary-btn">Submit Question</button>
+      </form>
+    </div>
+  );
+
+  const renderJoinCourse = () => (
+    <div>
+      <h3>Join Course</h3>
+      <p>Enter course code to join a new course</p>
+      <form className="create-form">
+        <input type="text" placeholder="Course Code" />
+        <button type="submit" className="primary-btn">Join Course</button>
+      </form>
+    </div>
+  );
+
+  const renderSection = () => {
+    switch(activeSection) {
+      case 'overview': return renderOverview();
+      case 'enrolled-courses': return renderEnrolledCourses();
+      case 'available-courses': return renderAvailableCourses();
+      case 'classes': return renderClasses();
+      case 'all-doubts': return renderAllDoubts();
+      case 'answered-doubts': return renderAnsweredDoubts();
+      case 'ask-doubt': return renderAskDoubt();
+      case 'join-course': return renderJoinCourse();
+      default: return renderOverview();
+    }
+  };
+
+  if (loading) {
     return (
       <div className="dashboard-loading">
         <div className="loading-spinner"></div>
@@ -42,7 +209,6 @@ const StudentDashboard = () => {
 
   return (
     <div className="dashboard">
-      {/* Dashboard Header */}
       <header className="dashboard-header">
         <div className="header-content">
           <div className="logo-section">
@@ -50,7 +216,7 @@ const StudentDashboard = () => {
             <span className="user-role">Student Dashboard</span>
           </div>
           <div className="header-actions">
-            <span className="welcome-text">Welcome, {userData.name}</span>
+            <span className="welcome-text">Welcome, {userData?.name || 'Student'}</span>
             <button onClick={handleLogout} className="logout-btn">
               Logout
             </button>
@@ -59,250 +225,71 @@ const StudentDashboard = () => {
       </header>
 
       <div className="dashboard-container">
-        {/* Sidebar Navigation */}
         <aside className="dashboard-sidebar">
           <nav className="sidebar-nav">
-            <button 
+            <div 
+              onClick={() => setActiveSection('overview')} 
               className={`nav-item ${activeSection === 'overview' ? 'active' : ''}`}
-              onClick={() => setActiveSection('overview')}
             >
               <span className="nav-icon">📊</span>
               Overview
-            </button>
-            <button 
-              className={`nav-item ${activeSection === 'classes' ? 'active' : ''}`}
-              onClick={() => setActiveSection('classes')}
+            </div>
+            <div 
+              onClick={() => setActiveSection('enrolled-courses')} 
+              className={`nav-item ${activeSection === 'enrolled-courses' ? 'active' : ''}`}
             >
               <span className="nav-icon">📚</span>
+              Enrolled Courses
+            </div>
+            <div 
+              onClick={() => setActiveSection('available-courses')} 
+              className={`nav-item ${activeSection === 'available-courses' ? 'active' : ''}`}
+            >
+              <span className="nav-icon">🔍</span>
+              Available Courses
+            </div>
+            <div 
+              onClick={() => setActiveSection('classes')} 
+              className={`nav-item ${activeSection === 'classes' ? 'active' : ''}`}
+            >
+              <span className="nav-icon">🏫</span>
               My Classes
-            </button>
-            <button 
-              className={`nav-item ${activeSection === 'questions' ? 'active' : ''}`}
-              onClick={() => setActiveSection('questions')}
+            </div>
+            <div 
+              onClick={() => setActiveSection('all-doubts')} 
+              className={`nav-item ${activeSection === 'all-doubts' ? 'active' : ''}`}
             >
               <span className="nav-icon">❓</span>
-              Questions
-            </button>
-            <button 
-              className={`nav-item ${activeSection === 'assignments' ? 'active' : ''}`}
-              onClick={() => setActiveSection('assignments')}
+              All Doubts
+            </div>
+            <div 
+              onClick={() => setActiveSection('answered-doubts')} 
+              className={`nav-item ${activeSection === 'answered-doubts' ? 'active' : ''}`}
             >
-              <span className="nav-icon">📝</span>
-              Assignments
-            </button>
-            <button 
-              className={`nav-item ${activeSection === 'profile' ? 'active' : ''}`}
-              onClick={() => setActiveSection('profile')}
+              <span className="nav-icon">✅</span>
+              Answered Doubts
+            </div>
+            <div 
+              onClick={() => setActiveSection('ask-doubt')} 
+              className={`nav-item ${activeSection === 'ask-doubt' ? 'active' : ''}`}
             >
-              <span className="nav-icon">👤</span>
-              Profile
-            </button>
+              <span className="nav-icon">💭</span>
+              Ask Doubt
+            </div>
+            <div 
+              onClick={() => setActiveSection('join-course')} 
+              className={`nav-item ${activeSection === 'join-course' ? 'active' : ''}`}
+            >
+              <span className="nav-icon">➕</span>
+              Join Course
+            </div>
           </nav>
         </aside>
 
-        {/* Main Content */}
         <main className="dashboard-main">
-          {activeSection === 'overview' && (
-            <div className="dashboard-section">
-              <h2 className="section-title">Dashboard Overview</h2>
-              <div className="stats-grid">
-                <div className="stat-card">
-                  <div className="stat-icon">📚</div>
-                  <div className="stat-info">
-                    <h3>3</h3>
-                    <p>Active Classes</p>
-                  </div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-icon">❓</div>
-                  <div className="stat-info">
-                    <h3>12</h3>
-                    <p>Questions Asked</p>
-                  </div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-icon">✅</div>
-                  <div className="stat-info">
-                    <h3>8</h3>
-                    <p>Assignments Completed</p>
-                  </div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-icon">⭐</div>
-                  <div className="stat-info">
-                    <h3>4.5</h3>
-                    <p>Average Grade</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="recent-activity">
-                <h3>Recent Activity</h3>
-                <div className="activity-list">
-                  <div className="activity-item">
-                    <span className="activity-icon">📚</span>
-                    <div className="activity-content">
-                      <p><strong>Joined</strong> Computer Science 101</p>
-                      <span className="activity-time">2 hours ago</span>
-                    </div>
-                  </div>
-                  <div className="activity-item">
-                    <span className="activity-icon">❓</span>
-                    <div className="activity-content">
-                      <p><strong>Asked a question</strong> in Mathematics</p>
-                      <span className="activity-time">5 hours ago</span>
-                    </div>
-                  </div>
-                  <div className="activity-item">
-                    <span className="activity-icon">✅</span>
-                    <div className="activity-content">
-                      <p><strong>Completed</strong> Physics Assignment #3</p>
-                      <span className="activity-time">1 day ago</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'classes' && (
-            <div className="dashboard-section">
-              <h2 className="section-title">My Classes</h2>
-              <div className="classes-grid">
-                <div className="class-card">
-                  <div className="class-header">
-                    <h3>Computer Science 101</h3>
-                    <span className="class-code">CS101</span>
-                  </div>
-                  <p className="class-teacher">Prof. John Smith</p>
-                  <p className="class-schedule">Mon, Wed, Fri - 10:00 AM</p>
-                  <div className="class-stats">
-                    <span>25 Students</span>
-                    <span>8 Assignments</span>
-                  </div>
-                  <button className="class-btn">View Class</button>
-                </div>
-                <div className="class-card">
-                  <div className="class-header">
-                    <h3>Mathematics</h3>
-                    <span className="class-code">MATH201</span>
-                  </div>
-                  <p className="class-teacher">Prof. Sarah Johnson</p>
-                  <p className="class-schedule">Tue, Thu - 2:00 PM</p>
-                  <div className="class-stats">
-                    <span>30 Students</span>
-                    <span>6 Assignments</span>
-                  </div>
-                  <button className="class-btn">View Class</button>
-                </div>
-                <div className="class-card">
-                  <div className="class-header">
-                    <h3>Physics</h3>
-                    <span className="class-code">PHY301</span>
-                  </div>
-                  <p className="class-teacher">Prof. David Wilson</p>
-                  <p className="class-schedule">Mon, Wed - 3:00 PM</p>
-                  <div className="class-stats">
-                    <span>20 Students</span>
-                    <span>5 Assignments</span>
-                  </div>
-                  <button className="class-btn">View Class</button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'questions' && (
-            <div className="dashboard-section">
-              <h2 className="section-title">My Questions</h2>
-              <button className="primary-btn mb-4">Ask New Question</button>
-              <div className="questions-list">
-                <div className="question-item">
-                  <div className="question-header">
-                    <h4>How do I solve quadratic equations?</h4>
-                    <span className="question-status answered">Answered</span>
-                  </div>
-                  <p className="question-meta">Mathematics • 2 days ago • 3 answers</p>
-                  <p className="question-preview">I'm having trouble understanding the quadratic formula...</p>
-                </div>
-                <div className="question-item">
-                  <div className="question-header">
-                    <h4>What is object-oriented programming?</h4>
-                    <span className="question-status pending">Pending</span>
-                  </div>
-                  <p className="question-meta">Computer Science 101 • 1 day ago • 0 answers</p>
-                  <p className="question-preview">Can someone explain OOP concepts with examples?</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'assignments' && (
-            <div className="dashboard-section">
-              <h2 className="section-title">Assignments</h2>
-              <div className="assignments-container">
-                <div className="assignment-filters">
-                  <button className="filter-btn active">All</button>
-                  <button className="filter-btn">Pending</button>
-                  <button className="filter-btn">Completed</button>
-                  <button className="filter-btn">Overdue</button>
-                </div>
-                <div className="assignments-list">
-                  <div className="assignment-item">
-                    <div className="assignment-header">
-                      <h4>Programming Assignment #4</h4>
-                      <span className="assignment-status pending">Pending</span>
-                    </div>
-                    <p className="assignment-meta">Computer Science 101 • Due: Oct 5, 2025</p>
-                    <p className="assignment-description">Create a simple calculator using Python</p>
-                    <button className="assignment-btn">Start Assignment</button>
-                  </div>
-                  <div className="assignment-item">
-                    <div className="assignment-header">
-                      <h4>Physics Lab Report</h4>
-                      <span className="assignment-status completed">Completed</span>
-                    </div>
-                    <p className="assignment-meta">Physics • Submitted: Sep 28, 2025</p>
-                    <p className="assignment-description">Analyze the motion of projectiles</p>
-                    <button className="assignment-btn secondary">View Submission</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'profile' && (
-            <div className="dashboard-section">
-              <h2 className="section-title">Profile Settings</h2>
-              <div className="profile-card">
-                <div className="profile-header">
-                  <div className="profile-avatar">
-                    <span className="avatar-initial">{userData.name.charAt(0)}</span>
-                  </div>
-                  <div className="profile-info">
-                    <h3>{userData.name}</h3>
-                    <p className="profile-role">Student</p>
-                    <p className="profile-id">ID: {userData.universityId}</p>
-                  </div>
-                </div>
-                <div className="profile-details">
-                  <div className="detail-item">
-                    <label>Email</label>
-                    <p>{userData.email}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label>University ID</label>
-                    <p>{userData.universityId}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label>Member Since</label>
-                    <p>September 2025</p>
-                  </div>
-                </div>
-                <button className="primary-btn">Edit Profile</button>
-              </div>
-            </div>
-          )}
+          <div className="dashboard-section">
+            {renderSection()}
+          </div>
         </main>
       </div>
     </div>

@@ -2,25 +2,40 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../Dashboard.css';
 
-
 const TeacherDashboard = () => {
   const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState('overview');
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if user is logged in
-    const token = localStorage.getItem('token');
-    const userRole = localStorage.getItem('userRole');
-    const storedUserData = localStorage.getItem('userData');
+    // Check if auth bypass is enabled
+    const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
+    
+    if (bypassAuth) {
+      // Mock user data for development
+      setUserData({
+        name: 'Dr. Jane Smith',
+        teacherId: 'TEACH001',
+        email: 'jane.smith@university.edu',
+        role: 'teacher'
+      });
+      setLoading(false);
+    } else {
+      // Check if user is logged in
+      const token = localStorage.getItem('token');
+      const userRole = localStorage.getItem('userRole');
+      const storedUserData = localStorage.getItem('userData');
 
-    if (!token || userRole !== 'teacher') {
-      navigate('/teacher/login');
-      return;
-    }
+      if (!token || userRole !== 'teacher') {
+        navigate('/teacher/login');
+        return;
+      }
 
-    if (storedUserData) {
-      setUserData(JSON.parse(storedUserData));
+      if (storedUserData) {
+        setUserData(JSON.parse(storedUserData));
+      }
+      setLoading(false);
     }
   }, [navigate]);
 
@@ -31,7 +46,187 @@ const TeacherDashboard = () => {
     navigate('/');
   };
 
-  if (!userData) {
+  // Section rendering functions
+  const renderOverview = () => (
+    <div>
+      <h3>Teacher Overview</h3>
+      <p>Welcome to your teaching dashboard, {userData?.name}!</p>
+      <div className="overview-stats">
+        <div className="stat-card">
+          <h4>Total Courses</h4>
+          <p>5</p>
+        </div>
+        <div className="stat-card">
+          <h4>Active Students</h4>
+          <p>120</p>
+        </div>
+        <div className="stat-card">
+          <h4>Pending Doubts</h4>
+          <p>8</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderYourCourses = () => (
+    <div>
+      <h3>Your Courses</h3>
+      <p>Manage and view all your courses</p>
+      <div className="course-list">
+        <div className="course-card">Mathematics 101</div>
+        <div className="course-card">Physics 201</div>
+        <div className="course-card">Chemistry 301</div>
+      </div>
+    </div>
+  );
+
+  const renderCreateCourse = () => (
+    <div>
+      <h3>Create New Course</h3>
+      <p>Create a new course for your students</p>
+      <form className="create-form">
+        <input type="text" placeholder="Course Name" />
+        <input type="text" placeholder="Course Code" />
+        <textarea placeholder="Course Description"></textarea>
+        <button type="submit" className="primary-btn">Create Course</button>
+      </form>
+    </div>
+  );
+
+  const renderCreateClass = () => (
+    <div>
+      <h3>Create New Class</h3>
+      <p>Schedule a new class session</p>
+      <form className="create-form">
+        <input type="text" placeholder="Class Title" />
+        <input type="datetime-local" placeholder="Date & Time" />
+        <textarea placeholder="Class Description"></textarea>
+        <button type="submit" className="primary-btn">Create Class</button>
+      </form>
+    </div>
+  );
+
+  const renderClassPage = () => (
+    <div>
+      <h3>Class Page</h3>
+      <p>Manage your class sessions and materials</p>
+      <div className="class-list">
+        <div className="class-item">
+          <h4>Mathematics - Algebra</h4>
+          <p>Today, 10:00 AM</p>
+        </div>
+        <div className="class-item">
+          <h4>Physics - Mechanics</h4>
+          <p>Tomorrow, 2:00 PM</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderJoinedStudents = () => (
+    <div>
+      <h3>Joined Students</h3>
+      <p>View all students enrolled in your courses</p>
+      <div className="student-list">
+        <div className="student-item">
+          <h4>John Doe</h4>
+          <p>Mathematics 101</p>
+        </div>
+        <div className="student-item">
+          <h4>Jane Smith</h4>
+          <p>Physics 201</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAllDoubts = () => (
+    <div>
+      <h3>All Doubts</h3>
+      <p>View all student questions and doubts</p>
+      <div className="doubt-list">
+        <div className="doubt-item">
+          <h4>Question about Integration</h4>
+          <p>From: John Doe | Subject: Mathematics</p>
+        </div>
+        <div className="doubt-item">
+          <h4>Physics Lab Procedure</h4>
+          <p>From: Jane Smith | Subject: Physics</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderUnansweredDoubts = () => (
+    <div>
+      <h3>Unanswered Doubts</h3>
+      <p>Questions waiting for your response</p>
+      <div className="doubt-list">
+        <div className="doubt-item urgent">
+          <h4>Chemistry Equation Balancing</h4>
+          <p>From: Alice Johnson | Posted: 2 hours ago</p>
+          <button className="primary-btn">Answer</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAnsweredDoubts = () => (
+    <div>
+      <h3>Answered Doubts</h3>
+      <p>Previously answered student questions</p>
+      <div className="doubt-list">
+        <div className="doubt-item answered">
+          <h4>Calculus Derivative</h4>
+          <p>From: Bob Wilson | Answered: Yesterday</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderCourseDetails = () => (
+    <div>
+      <h3>Course Details</h3>
+      <p>Detailed information about your courses</p>
+      <div className="course-details">
+        <h4>Mathematics 101</h4>
+        <p>Students: 45 | Duration: 16 weeks</p>
+        <p>Next Class: Monday, 10:00 AM</p>
+      </div>
+    </div>
+  );
+
+  const renderProfile = () => (
+    <div>
+      <h3>Teacher Profile</h3>
+      <p>Manage your profile information</p>
+      <div className="profile-info">
+        <p><strong>Name:</strong> {userData?.name}</p>
+        <p><strong>Teacher ID:</strong> {userData?.teacherId}</p>
+        <p><strong>Email:</strong> {userData?.email}</p>
+        <button className="primary-btn">Edit Profile</button>
+      </div>
+    </div>
+  );
+
+  const renderSection = () => {
+    switch(activeSection) {
+      case 'overview': return renderOverview();
+      case 'your-courses': return renderYourCourses();
+      case 'create-course': return renderCreateCourse();
+      case 'create-class': return renderCreateClass();
+      case 'class-page': return renderClassPage();
+      case 'joined-students': return renderJoinedStudents();
+      case 'all-doubts': return renderAllDoubts();
+      case 'unanswered-doubts': return renderUnansweredDoubts();
+      case 'answered-doubts': return renderAnsweredDoubts();
+      case 'course-details': return renderCourseDetails();
+      case 'profile': return renderProfile();
+      default: return renderOverview();
+    }
+  };
+
+  if (loading) {
     return (
       <div className="dashboard-loading">
         <div className="loading-spinner"></div>
@@ -41,8 +236,7 @@ const TeacherDashboard = () => {
   }
 
   return (
-    <div className="dashboard teacher-dashboard">
-      {/* Dashboard Header */}
+    <div className="dashboard">
       <header className="dashboard-header">
         <div className="header-content">
           <div className="logo-section">
@@ -50,7 +244,7 @@ const TeacherDashboard = () => {
             <span className="user-role">Teacher Dashboard</span>
           </div>
           <div className="header-actions">
-            <span className="welcome-text">Welcome, Prof. {userData.name}</span>
+            <span className="welcome-text">Welcome, {userData?.name || 'Teacher'}</span>
             <button onClick={handleLogout} className="logout-btn">
               Logout
             </button>
@@ -59,408 +253,92 @@ const TeacherDashboard = () => {
       </header>
 
       <div className="dashboard-container">
-        {/* Sidebar Navigation */}
         <aside className="dashboard-sidebar">
           <nav className="sidebar-nav">
-            <button 
+            <div 
+              onClick={() => setActiveSection('overview')} 
               className={`nav-item ${activeSection === 'overview' ? 'active' : ''}`}
-              onClick={() => setActiveSection('overview')}
             >
               <span className="nav-icon">📊</span>
               Overview
-            </button>
-            <button 
-              className={`nav-item ${activeSection === 'classes' ? 'active' : ''}`}
-              onClick={() => setActiveSection('classes')}
-            >
-              <span className="nav-icon">🏫</span>
-              My Classes
-            </button>
-            <button 
-              className={`nav-item ${activeSection === 'students' ? 'active' : ''}`}
-              onClick={() => setActiveSection('students')}
-            >
-              <span className="nav-icon">👨‍🎓</span>
-              Students
-            </button>
-            <button 
-              className={`nav-item ${activeSection === 'questions' ? 'active' : ''}`}
-              onClick={() => setActiveSection('questions')}
-            >
-              <span className="nav-icon">❓</span>
-              Q&A Center
-            </button>
-            <button 
-              className={`nav-item ${activeSection === 'assignments' ? 'active' : ''}`}
-              onClick={() => setActiveSection('assignments')}
-            >
-              <span className="nav-icon">📝</span>
-              Assignments
-            </button>
-            <button 
-              className={`nav-item ${activeSection === 'materials' ? 'active' : ''}`}
-              onClick={() => setActiveSection('materials')}
+            </div>
+            <div 
+              onClick={() => setActiveSection('your-courses')} 
+              className={`nav-item ${activeSection === 'your-courses' ? 'active' : ''}`}
             >
               <span className="nav-icon">📚</span>
-              Materials
-            </button>
-            <button 
+              Your Courses
+            </div>
+            <div 
+              onClick={() => setActiveSection('create-course')} 
+              className={`nav-item ${activeSection === 'create-course' ? 'active' : ''}`}
+            >
+              <span className="nav-icon">➕</span>
+              Create Course
+            </div>
+            <div 
+              onClick={() => setActiveSection('create-class')} 
+              className={`nav-item ${activeSection === 'create-class' ? 'active' : ''}`}
+            >
+              <span className="nav-icon">🏫</span>
+              Create Class
+            </div>
+            <div 
+              onClick={() => setActiveSection('class-page')} 
+              className={`nav-item ${activeSection === 'class-page' ? 'active' : ''}`}
+            >
+              <span className="nav-icon">📝</span>
+              Class Page
+            </div>
+            <div 
+              onClick={() => setActiveSection('joined-students')} 
+              className={`nav-item ${activeSection === 'joined-students' ? 'active' : ''}`}
+            >
+              <span className="nav-icon">👥</span>
+              Joined Students
+            </div>
+            <div 
+              onClick={() => setActiveSection('all-doubts')} 
+              className={`nav-item ${activeSection === 'all-doubts' ? 'active' : ''}`}
+            >
+              <span className="nav-icon">❓</span>
+              All Doubts
+            </div>
+            <div 
+              onClick={() => setActiveSection('unanswered-doubts')} 
+              className={`nav-item ${activeSection === 'unanswered-doubts' ? 'active' : ''}`}
+            >
+              <span className="nav-icon">⏳</span>
+              Unanswered Doubts
+            </div>
+            <div 
+              onClick={() => setActiveSection('answered-doubts')} 
+              className={`nav-item ${activeSection === 'answered-doubts' ? 'active' : ''}`}
+            >
+              <span className="nav-icon">✅</span>
+              Answered Doubts
+            </div>
+            <div 
+              onClick={() => setActiveSection('course-details')} 
+              className={`nav-item ${activeSection === 'course-details' ? 'active' : ''}`}
+            >
+              <span className="nav-icon">📋</span>
+              Course Details
+            </div>
+            <div 
+              onClick={() => setActiveSection('profile')} 
               className={`nav-item ${activeSection === 'profile' ? 'active' : ''}`}
-              onClick={() => setActiveSection('profile')}
             >
               <span className="nav-icon">👤</span>
               Profile
-            </button>
+            </div>
           </nav>
         </aside>
 
-        {/* Main Content */}
         <main className="dashboard-main">
-          {activeSection === 'overview' && (
-            <div className="dashboard-section">
-              <h2 className="section-title">Teaching Overview</h2>
-              <div className="stats-grid">
-                <div className="stat-card teacher-stat">
-                  <div className="stat-icon">🏫</div>
-                  <div className="stat-info">
-                    <h3>4</h3>
-                    <p>Active Classes</p>
-                  </div>
-                </div>
-                <div className="stat-card teacher-stat">
-                  <div className="stat-icon">👨‍🎓</div>
-                  <div className="stat-info">
-                    <h3>85</h3>
-                    <p>Total Students</p>
-                  </div>
-                </div>
-                <div className="stat-card teacher-stat">
-                  <div className="stat-icon">❓</div>
-                  <div className="stat-info">
-                    <h3>23</h3>
-                    <p>Pending Questions</p>
-                  </div>
-                </div>
-                <div className="stat-card teacher-stat">
-                  <div className="stat-icon">📝</div>
-                  <div className="stat-info">
-                    <h3>12</h3>
-                    <p>Assignments to Grade</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="teacher-quick-actions">
-                <h3>Quick Actions</h3>
-                <div className="quick-actions-grid">
-                  <button className="quick-action-btn">
-                    <span className="action-icon">📚</span>
-                    <span>Create New Class</span>
-                  </button>
-                  <button className="quick-action-btn">
-                    <span className="action-icon">📝</span>
-                    <span>Create Assignment</span>
-                  </button>
-                  <button className="quick-action-btn">
-                    <span className="action-icon">📄</span>
-                    <span>Upload Material</span>
-                  </button>
-                  <button className="quick-action-btn">
-                    <span className="action-icon">💬</span>
-                    <span>Send Announcement</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="recent-activity">
-                <h3>Recent Activity</h3>
-                <div className="activity-list">
-                  <div className="activity-item">
-                    <span className="activity-icon">👨‍🎓</span>
-                    <div className="activity-content">
-                      <p><strong>New student enrolled</strong> in Computer Science 101</p>
-                      <span className="activity-time">1 hour ago</span>
-                    </div>
-                  </div>
-                  <div className="activity-item">
-                    <span className="activity-icon">❓</span>
-                    <div className="activity-content">
-                      <p><strong>Question answered</strong> in Mathematics class</p>
-                      <span className="activity-time">3 hours ago</span>
-                    </div>
-                  </div>
-                  <div className="activity-item">
-                    <span className="activity-icon">📝</span>
-                    <div className="activity-content">
-                      <p><strong>Assignment graded</strong> for Physics 301</p>
-                      <span className="activity-time">5 hours ago</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'classes' && (
-            <div className="dashboard-section">
-              <div className="section-header">
-                <h2 className="section-title">My Classes</h2>
-                <button className="primary-btn">Create New Class</button>
-              </div>
-              <div className="classes-grid teacher-classes">
-                <div className="class-card teacher-class">
-                  <div className="class-header">
-                    <h3>Computer Science 101</h3>
-                    <span className="class-code">CS101</span>
-                  </div>
-                  <p className="class-schedule">Mon, Wed, Fri - 10:00 AM</p>
-                  <div className="class-stats">
-                    <span>25 Students</span>
-                    <span>8 Assignments</span>
-                    <span>12 Questions</span>
-                  </div>
-                  <div className="class-actions">
-                    <button className="class-btn">Manage Class</button>
-                    <button className="class-btn secondary">View Analytics</button>
-                  </div>
-                </div>
-                <div className="class-card teacher-class">
-                  <div className="class-header">
-                    <h3>Advanced Programming</h3>
-                    <span className="class-code">CS301</span>
-                  </div>
-                  <p className="class-schedule">Tue, Thu - 2:00 PM</p>
-                  <div className="class-stats">
-                    <span>18 Students</span>
-                    <span>6 Assignments</span>
-                    <span>8 Questions</span>
-                  </div>
-                  <div className="class-actions">
-                    <button className="class-btn">Manage Class</button>
-                    <button className="class-btn secondary">View Analytics</button>
-                  </div>
-                </div>
-                <div className="class-card teacher-class">
-                  <div className="class-header">
-                    <h3>Data Structures</h3>
-                    <span className="class-code">CS201</span>
-                  </div>
-                  <p className="class-schedule">Mon, Wed - 3:00 PM</p>
-                  <div className="class-stats">
-                    <span>22 Students</span>
-                    <span>10 Assignments</span>
-                    <span>15 Questions</span>
-                  </div>
-                  <div className="class-actions">
-                    <button className="class-btn">Manage Class</button>
-                    <button className="class-btn secondary">View Analytics</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'students' && (
-            <div className="dashboard-section">
-              <h2 className="section-title">Student Management</h2>
-              <div className="students-overview">
-                <div className="students-stats">
-                  <div className="students-summary">
-                    <h3>All Students: 85</h3>
-                    <p>Across all classes</p>
-                  </div>
-                </div>
-                <div className="students-list">
-                  <div className="student-item">
-                    <div className="student-avatar">JS</div>
-                    <div className="student-info">
-                      <h4>John Smith</h4>
-                      <p>Computer Science 101, Advanced Programming</p>
-                      <span className="student-grade">Average: 4.2/5</span>
-                    </div>
-                    <button className="student-btn">View Details</button>
-                  </div>
-                  <div className="student-item">
-                    <div className="student-avatar">AD</div>
-                    <div className="student-info">
-                      <h4>Alice Davis</h4>
-                      <p>Data Structures, Computer Science 101</p>
-                      <span className="student-grade">Average: 4.8/5</span>
-                    </div>
-                    <button className="student-btn">View Details</button>
-                  </div>
-                  <div className="student-item">
-                    <div className="student-avatar">MB</div>
-                    <div className="student-info">
-                      <h4>Mike Brown</h4>
-                      <p>Advanced Programming</p>
-                      <span className="student-grade">Average: 3.9/5</span>
-                    </div>
-                    <button className="student-btn">View Details</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'questions' && (
-            <div className="dashboard-section">
-              <h2 className="section-title">Q&A Center</h2>
-              <div className="questions-filters">
-                <button className="filter-btn active">All Questions (23)</button>
-                <button className="filter-btn">Unanswered (15)</button>
-                <button className="filter-btn">Answered (8)</button>
-              </div>
-              <div className="teacher-questions-list">
-                <div className="teacher-question-item urgent">
-                  <div className="question-header">
-                    <h4>How do I implement a binary search tree?</h4>
-                    <span className="question-tag">Urgent</span>
-                  </div>
-                  <p className="question-meta">Data Structures • John Smith • 2 hours ago</p>
-                  <p className="question-preview">I'm struggling with the implementation of BST insert method...</p>
-                  <button className="answer-btn">Answer Question</button>
-                </div>
-                <div className="teacher-question-item">
-                  <div className="question-header">
-                    <h4>Explain polymorphism in OOP</h4>
-                    <span className="question-tag answered">Answered</span>
-                  </div>
-                  <p className="question-meta">Computer Science 101 • Alice Davis • 1 day ago</p>
-                  <p className="question-preview">Can you provide examples of polymorphism?</p>
-                  <button className="answer-btn secondary">View Answer</button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'assignments' && (
-            <div className="dashboard-section">
-              <div className="section-header">
-                <h2 className="section-title">Assignment Management</h2>
-                <button className="primary-btn">Create Assignment</button>
-              </div>
-              <div className="assignments-overview">
-                <div className="assignment-stats">
-                  <div className="stat-item">
-                    <h4>12</h4>
-                    <p>To Grade</p>
-                  </div>
-                  <div className="stat-item">
-                    <h4>8</h4>
-                    <p>Active</p>
-                  </div>
-                  <div className="stat-item">
-                    <h4>25</h4>
-                    <p>Completed</p>
-                  </div>
-                </div>
-                <div className="teacher-assignments-list">
-                  <div className="teacher-assignment-item">
-                    <div className="assignment-info">
-                      <h4>Programming Project #3</h4>
-                      <p>Computer Science 101 • Due: Oct 10, 2025</p>
-                      <span className="submissions-count">18/25 submissions</span>
-                    </div>
-                    <div className="assignment-actions">
-                      <button className="grade-btn">Grade Submissions (7)</button>
-                      <button className="view-btn">View Assignment</button>
-                    </div>
-                  </div>
-                  <div className="teacher-assignment-item">
-                    <div className="assignment-info">
-                      <h4>Algorithm Analysis</h4>
-                      <p>Data Structures • Due: Oct 8, 2025</p>
-                      <span className="submissions-count">22/22 submissions</span>
-                    </div>
-                    <div className="assignment-actions">
-                      <button className="grade-btn">Grade Submissions (5)</button>
-                      <button className="view-btn">View Assignment</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'materials' && (
-            <div className="dashboard-section">
-              <div className="section-header">
-                <h2 className="section-title">Course Materials</h2>
-                <button className="primary-btn">Upload Material</button>
-              </div>
-              <div className="materials-grid">
-                <div className="material-category">
-                  <h3>Computer Science 101</h3>
-                  <div className="materials-list">
-                    <div className="material-item">
-                      <span className="material-icon">📄</span>
-                      <span className="material-name">Introduction to Programming.pdf</span>
-                      <button className="material-btn">Edit</button>
-                    </div>
-                    <div className="material-item">
-                      <span className="material-icon">🎥</span>
-                      <span className="material-name">OOP Concepts Video</span>
-                      <button className="material-btn">Edit</button>
-                    </div>
-                  </div>
-                </div>
-                <div className="material-category">
-                  <h3>Data Structures</h3>
-                  <div className="materials-list">
-                    <div className="material-item">
-                      <span className="material-icon">📄</span>
-                      <span className="material-name">Trees and Graphs.pdf</span>
-                      <button className="material-btn">Edit</button>
-                    </div>
-                    <div className="material-item">
-                      <span className="material-icon">💻</span>
-                      <span className="material-name">Code Examples</span>
-                      <button className="material-btn">Edit</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {activeSection === 'profile' && (
-            <div className="dashboard-section">
-              <h2 className="section-title">Profile Settings</h2>
-              <div className="profile-card teacher-profile">
-                <div className="profile-header">
-                  <div className="profile-avatar">
-                    <span className="avatar-initial">{userData.name.charAt(0)}</span>
-                  </div>
-                  <div className="profile-info">
-                    <h3>Prof. {userData.name}</h3>
-                    <p className="profile-role">Teacher</p>
-                    <p className="profile-department">{userData.department}</p>
-                    <p className="profile-id">ID: {userData.universityId}</p>
-                  </div>
-                </div>
-                <div className="profile-details">
-                  <div className="detail-item">
-                    <label>Email</label>
-                    <p>{userData.email}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label>Department</label>
-                    <p>{userData.department}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label>University ID</label>
-                    <p>{userData.universityId}</p>
-                  </div>
-                  <div className="detail-item">
-                    <label>Teaching Since</label>
-                    <p>September 2025</p>
-                  </div>
-                </div>
-                <button className="primary-btn">Edit Profile</button>
-              </div>
-            </div>
-          )}
+          <div className="dashboard-section">
+            {renderSection()}
+          </div>
         </main>
       </div>
     </div>

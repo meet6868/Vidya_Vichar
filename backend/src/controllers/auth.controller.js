@@ -1,248 +1,154 @@
-// Auth Controller for handling authentication
+
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const Student = require('../models/Students');
+const Teacher = require('../models/Teachers');
 
-// Mock user data for now - replace with database later
-let users = [];
-let nextId = 1;
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
-const authController = {
-  // Register Student
-  registerStudent: async (req, res) => {
-    try {
-      const { name, email, password, universityId } = req.body;
-      
-      // Check if student already exists
-      const existingUser = users.find(user => user.email === email);
-      if (existingUser) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Student already exists with this email' 
-        });
-      }
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      // Create new student
-      const newStudent = {
-        id: nextId++,
-        name,
-        email,
-        password: hashedPassword,
-        role: 'student',
-        universityId,
-        createdAt: new Date()
-      };
-
-      users.push(newStudent);
-
-      // Generate JWT token
-      const token = jwt.sign(
-        { id: newStudent.id, email: newStudent.email, role: 'student' },
-        process.env.JWT_SECRET || 'fallback_secret',
-        { expiresIn: '24h' }
-      );
-
-      res.status(201).json({
-        success: true,
-        message: 'Student registered successfully',
-        data: {
-          user: {
-            id: newStudent.id,
-            name: newStudent.name,
-            email: newStudent.email,
-            role: newStudent.role,
-            universityId: newStudent.universityId
-          },
-          token
-        }
-      });
-    } catch (error) {
-      res.status(500).json({ 
-        success: false, 
-        message: 'Server error during registration',
-        error: error.message 
-      });
+// Register Student
+exports.registerStudent = async (req, res) => {
+  try {
+    const { username, password, name, roll_no, is_TA, courses_id, batch, branch } = req.body;
+    if (!username || !password || !name || !roll_no || !courses_id || !batch || !branch) {
+      return res.status(400).json({ message: 'All fields are required.' });
     }
-  },
-
-  // Register Teacher
-  registerTeacher: async (req, res) => {
-    try {
-      const { name, email, password, department, universityId } = req.body;
-      
-      // Check if teacher already exists
-      const existingUser = users.find(user => user.email === email);
-      if (existingUser) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Teacher already exists with this email' 
-        });
-      }
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      // Create new teacher
-      const newTeacher = {
-        id: nextId++,
-        name,
-        email,
-        password: hashedPassword,
-        role: 'teacher',
-        department,
-        universityId,
-        createdAt: new Date()
-      };
-
-      users.push(newTeacher);
-
-      // Generate JWT token
-      const token = jwt.sign(
-        { id: newTeacher.id, email: newTeacher.email, role: 'teacher' },
-        process.env.JWT_SECRET || 'fallback_secret',
-        { expiresIn: '24h' }
-      );
-
-      res.status(201).json({
-        success: true,
-        message: 'Teacher registered successfully',
-        data: {
-          user: {
-            id: newTeacher.id,
-            name: newTeacher.name,
-            email: newTeacher.email,
-            role: newTeacher.role,
-            department: newTeacher.department,
-            universityId: newTeacher.universityId
-          },
-          token
-        }
-      });
-    } catch (error) {
-      res.status(500).json({ 
-        success: false, 
-        message: 'Server error during registration',
-        error: error.message 
-      });
+    const existing = await Student.findOne({ username });
+    if (existing) {
+      return res.status(400).json({ message: 'Student already exists.' });
     }
-  },
-
-  // Login Student
-  loginStudent: async (req, res) => {
-    try {
-      const { email, password } = req.body;
-
-      // Find student
-      const student = users.find(user => user.email === email && user.role === 'student');
-      if (!student) {
-        return res.status(401).json({ 
-          success: false, 
-          message: 'Invalid student credentials' 
-        });
-      }
-
-      // Check password
-      const isValidPassword = await bcrypt.compare(password, student.password);
-      if (!isValidPassword) {
-        return res.status(401).json({ 
-          success: false, 
-          message: 'Invalid student credentials' 
-        });
-      }
-
-      // Generate JWT token
-      const token = jwt.sign(
-        { id: student.id, email: student.email, role: 'student' },
-        process.env.JWT_SECRET || 'fallback_secret',
-        { expiresIn: '24h' }
-      );
-
-      res.status(200).json({
-        success: true,
-        message: 'Student login successful',
-        data: {
-          user: {
-            id: student.id,
-            name: student.name,
-            email: student.email,
-            role: student.role,
-            universityId: student.universityId
-          },
-          token
-        }
-      });
-    } catch (error) {
-      res.status(500).json({ 
-        success: false, 
-        message: 'Server error during login',
-        error: error.message 
-      });
-    }
-  },
-
-  // Login Teacher
-  loginTeacher: async (req, res) => {
-    try {
-      const { email, password } = req.body;
-
-      // Find teacher
-      const teacher = users.find(user => user.email === email && user.role === 'teacher');
-      if (!teacher) {
-        return res.status(401).json({ 
-          success: false, 
-          message: 'Invalid teacher credentials' 
-        });
-      }
-
-      // Check password
-      const isValidPassword = await bcrypt.compare(password, teacher.password);
-      if (!isValidPassword) {
-        return res.status(401).json({ 
-          success: false, 
-          message: 'Invalid teacher credentials' 
-        });
-      }
-
-      // Generate JWT token
-      const token = jwt.sign(
-        { id: teacher.id, email: teacher.email, role: 'teacher' },
-        process.env.JWT_SECRET || 'fallback_secret',
-        { expiresIn: '24h' }
-      );
-
-      res.status(200).json({
-        success: true,
-        message: 'Teacher login successful',
-        data: {
-          user: {
-            id: teacher.id,
-            name: teacher.name,
-            email: teacher.email,
-            role: teacher.role,
-            department: teacher.department,
-            universityId: teacher.universityId
-          },
-          token
-        }
-      });
-    } catch (error) {
-      res.status(500).json({ 
-        success: false, 
-        message: 'Server error during login',
-        error: error.message 
-      });
-    }
-  },
-
-  // Logout
-  logout: (req, res) => {
-    res.status(200).json({
-      success: true,
-      message: 'Logout successful'
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const student = new Student({
+      username,
+      password: hashedPassword,
+      name,
+      roll_no,
+      is_TA: is_TA || false,
+      courses_id,
+      batch,
+      branch
     });
+    await student.save();
+    res.status(201).json({ message: 'Student registered successfully.' });
+  } 
+  catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
 
-module.exports = authController;
+// Register Teacher
+exports.registerTeacher = async (req, res) => {
+  try {
+    const { teacher_id, username, password, courses_id } = req.body;
+    if (!teacher_id || !username || !password) {
+      return res.status(400).json({ message: 'All fields are required.' });
+    }
+    const existing = await Teacher.findOne({ username });
+    if (existing) {
+      return res.status(400).json({ message: 'Teacher already exists.' });
+    }
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const teacher = new Teacher({
+      teacher_id,
+      username,
+      password: hashedPassword,
+      courses_id: courses_id || []
+    });
+    await teacher.save();
+    res.status(201).json({ message: 'Teacher registered successfully.' });
+  } 
+  catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+// Login Student
+exports.loginStudent = async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Username and password are required.' });
+    }
+    const user = await Student.findOne({ username });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials.' });
+    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid credentials.' });
+    }
+    const token = jwt.sign({ id: user._id, role: 'student' }, JWT_SECRET, { expiresIn: '1d' });
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 0.5 * 60 * 60 * 1000 // 1/2 hour
+    });
+    return res.status(200).json({
+      message: 'Login successful',
+      role: 'student'
+    });
+  } 
+  catch (err) {
+    return res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+// Login Teacher
+exports.loginTeacher = async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Username and password are required.' });
+    }
+    const user = await Teacher.findOne({ username });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials.' });
+    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid credentials.' });
+    }
+    const token = jwt.sign({ id: user._id, role: 'teacher' }, JWT_SECRET, { expiresIn: '1d' });
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 0.5 * 60 * 60 * 1000 // 1/2 day
+    });
+    return res.status(200).json({
+      message: 'Login successful',
+      role: 'teacher'
+    });
+  } 
+  catch (err) {
+    return res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};
+
+// Logout: clear the cookie
+exports.logout = (req, res) => {
+  res.clearCookie('token');
+  res.status(200).json({
+    message: 'Logout successful'
+  });
+};
+
+// Middleware for protected routes
+exports.authenticate = (roles = []) => {
+  return (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'No token provided.' });
+    }
+    const token = authHeader.split(' ')[1];
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      if (roles.length && !roles.includes(decoded.role)) {
+        return res.status(403).json({ message: 'Forbidden: Insufficient role.' });
+      }
+      req.user = decoded;
+      next();
+    } catch (err) {
+      return res.status(401).json({ message: 'Invalid token.' });
+    }
+  };
+};
