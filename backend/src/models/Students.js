@@ -1,0 +1,43 @@
+// Students.js
+const mongoose = require('mongoose');
+
+const StudentSchema = new mongoose.Schema({
+	username: {
+		type: String,
+		required: true,
+		unique: true,
+		match: [/^\S+@\S+\.\S+$/, 'Please use a valid email address.']
+	},
+	password: {
+		type: String,
+		required: true
+	},
+	name: {
+		type: String,
+		required: true
+	},
+	roll_no: {
+		type: String,
+		required: true
+	},
+	is_TA: {
+		type: Boolean,
+		default: false
+	},
+	courses_id: {
+		type: String,
+		required: true
+	},
+	batch: {
+		type: String,
+		enum: ['MT', 'BT', 'PH', 'MS'],
+		required: true
+	},
+	branch: {
+		type: String,
+		enum: ['CSE', 'ECE'],
+		required: true
+	}
+});
+
+module.exports = mongoose.model('Student', StudentSchema);
