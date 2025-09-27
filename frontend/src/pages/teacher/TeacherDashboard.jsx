@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { apiRequest } from '../../config/api.js';
 import '../Dashboard.css';
 
 const TeacherDashboard = () => {
@@ -22,25 +23,50 @@ const TeacherDashboard = () => {
       });
       setLoading(false);
     } else {
-      // Check if user is logged in
-      const token = localStorage.getItem('token');
+      // Check if user is logged in (cookie-based authentication)
+      // Token is stored in HTTP-only cookies, so we check userRole and userData
       const userRole = localStorage.getItem('userRole');
       const storedUserData = localStorage.getItem('userData');
+      console.log('User role:', userRole, 'User data:', storedUserData);
 
-      if (!token || userRole !== 'teacher') {
+      if (userRole !== 'teacher') {
         navigate('/teacher/login');
         return;
       }
 
-      if (storedUserData) {
-        setUserData(JSON.parse(storedUserData));
+      if (storedUserData && storedUserData !== 'undefined') {
+        try {
+          setUserData(JSON.parse(storedUserData));
+        } catch (error) {
+          console.error('Error parsing userData:', error);
+          // Clear invalid userData and redirect to login
+          localStorage.removeItem('userData');
+          navigate('/teacher/login');
+          return;
+        }
+      } else {
+        // No user data available, set a default or redirect to login
+        console.log('No userData found, using default');
+        setUserData({
+          name: 'Teacher User',
+          role: 'teacher'
+        });
       }
       setLoading(false);
     }
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
+  const handleLogout = async () => {
+    try {
+      // Call logout API to clear server-side cookie using the API helper
+      await apiRequest('/auth/logout', {
+        method: 'POST'
+      });
+    } catch (error) {
+      console.log('Logout API call failed, but continuing with client-side cleanup');
+    }
+    
+    // Clear client-side data
     localStorage.removeItem('userRole');
     localStorage.removeItem('userData');
     navigate('/');

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { apiRequest } from '../../config/api.js';
 import '../Dashboard.css';
 
 const StudentDashboard = () => {
@@ -22,25 +23,55 @@ const StudentDashboard = () => {
       });
       setLoading(false);
     } else {
-      // Check if user is logged in
-      const token = localStorage.getItem('token');
+      // Check if user is logged in (cookie-based authentication)
+      // Token is stored in HTTP-only cookies, so we check userRole and userData
       const userRole = localStorage.getItem('userRole');
       const storedUserData = localStorage.getItem('userData');
 
-      if (!token || userRole !== 'student') {
+      if (userRole !== 'student') {
         navigate('/student/login');
         return;
       }
 
-      if (storedUserData) {
-        setUserData(JSON.parse(storedUserData));
+      // Safely parse user data with error handling
+      if (storedUserData && storedUserData !== 'undefined') {
+        try {
+          setUserData(JSON.parse(storedUserData));
+        } catch (error) {
+          console.error('Error parsing stored user data:', error);
+          // Set fallback user data if JSON parsing fails
+          setUserData({
+            name: 'Student',
+            universityId: 'Unknown',
+            email: 'student@university.edu',
+            role: 'student'
+          });
+        }
+      } else {
+        console.log('No valid user data found in localStorage');
+        // Set fallback user data
+        setUserData({
+          name: 'Student',
+          universityId: 'Unknown',
+          email: 'student@university.edu',
+          role: 'student'
+        });
       }
       setLoading(false);
     }
   }, [navigate]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
+  const handleLogout = async () => {
+    try {
+      // Call logout API to clear server-side cookie using the API helper
+      await apiRequest('/auth/logout', {
+        method: 'POST'
+      });
+    } catch (error) {
+      console.log('Logout API call failed, but continuing with client-side cleanup');
+    }
+    
+    // Clear client-side data
     localStorage.removeItem('userRole');
     localStorage.removeItem('userData');
     navigate('/');
