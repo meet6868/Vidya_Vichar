@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+
+const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 
 // Import routes
@@ -12,9 +14,11 @@ const app = express();
 connectDB();
 
 // Middleware
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Routes
 app.get('/', (req, res) => {

@@ -26,10 +26,6 @@ const QuestionSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  is_teacher_answer: {
-    type: Boolean,
-    default: false
-  },
   upvotes: {
     type: Number,
     default: 0
