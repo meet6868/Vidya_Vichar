@@ -12,7 +12,11 @@ const LectureSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  class_date_time: {
+  class_start: {
+    type: Date,
+    required: true
+  },
+  class_end: {
     type: Date,
     required: true
   },
@@ -21,6 +25,10 @@ const LectureSchema = new mongoose.Schema({
     required: true
   },
   query_id: [{
+    type: String,
+    unique: true
+  }],
+  joined_students: [{
     type: String,
     unique: true
   }],

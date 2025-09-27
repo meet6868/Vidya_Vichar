@@ -1,3 +1,9 @@
+<<<<<<< HEAD
+=======
+
+
+
+>>>>>>> side
 // Student Controller for handling student-specific operations
 const Student = require('../models/Students');
 const Course = require('../models/Courses');
@@ -204,14 +210,63 @@ const studentController = {
       const courses = await Course.find({
         batch: student.batch,
         branch: student.branch
-      }, '_id course_name');
+      }, 'course_id course_name');
 
       res.status(200).json({
         success: true,
         data: {
           courses: courses.map(course => ({
-            id: course._id,
+            id: course.course_id,
             name: course.course_name
+          }))
+        }
+      });
+    } 
+    catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: error.message
+      });
+    }
+  },
+
+  // Get student classes/lectures
+  getStudentLectures: async (req, res) => {
+    try {
+      const studentId = req.user.id;
+      const student = await Student.findById(studentId);
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message: 'Student not found'
+        });
+      }
+
+      // Get lectures for courses the student is enrolled in
+      const now = new Date();
+      const lectures = await Lecture.find({
+        course_id: { $in: student.courses_id }
+      }).populate('course_id', 'course_name');
+
+      // Filter lectures: only those starting within 15 min from now and not ended
+      const filteredLectures = lectures.filter(lecture => {
+        if (!lecture.scheduled_time || !lecture.end_time) return false;
+        const start = new Date(lecture.scheduled_time);
+        const end = new Date(lecture.end_time);
+        // Show if now >= (start - 15min) and now <= end
+        return now >= new Date(start.getTime() - 15 * 60 * 1000) && now <= end;
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          lectures: filteredLectures.map(lecture => ({
+            lecture_id: lecture._id,
+            course_id: lecture.course_id?._id || lecture.course_id,
+            course_name: lecture.course_id?.course_name,
+            scheduled_time: lecture.scheduled_time,
+            lecture_number: lecture.lecture_number
           }))
         }
       });
@@ -224,28 +279,197 @@ const studentController = {
     }
   },
 
-  // Get student classes/lectures
-  getStudentClasses: async (req, res) => {
+    // Get previous lectures for student (lectures that have ended)
+  getPrevStudentLectures: async (req, res) => {
     try {
       const studentId = req.user.id;
-      
       const student = await Student.findById(studentId);
-      const lectures = await Lecture.find({ 
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message: 'Student not found'
+        });
+      }
+
+      // Get lectures for courses the student is enrolled in
+      const now = new Date();
+      const lectures = await Lecture.find({
         course_id: { $in: student.courses_id }
-      }).populate('course_id', 'course_name course_code');
+      }).populate('course_id', 'course_name');
+
+      // Filter lectures: only those where now > end time
+      const filteredLectures = lectures.filter(lecture => {
+        if (!lecture.end_time) return false;
+        const end = new Date(lecture.end_time);
+        return now > end;
+      });
 
       res.status(200).json({
         success: true,
         data: {
-          lectures: lectures.map(lecture => ({
-            id: lecture._id,
-            lecture_title: lecture.lecture_title,
+          lectures: filteredLectures.map(lecture => ({
+            lecture_id: lecture._id,
+            course_id: lecture.course_id?._id || lecture.course_id,
             course_name: lecture.course_id?.course_name,
-            course_code: lecture.course_id?.course_code,
             scheduled_time: lecture.scheduled_time,
-            duration: lecture.duration,
-            is_live: lecture.is_live
+            lecture_number: lecture.lecture_number
           }))
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: error.message
+      });
+    }
+  },
+
+    // Get all questions for a lecture
+  getAllQuestions: async (req, res) => {
+    try {
+      const { lectureId } = req.body;
+      if (!lectureId) {
+        return res.status(400).json({
+          success: false,
+          message: 'lecture_id is required in req.user'
+        });
+      }
+
+      // Find all questions for this lecture
+      const questions = await Question.find({ lecture_id: lectureId })
+        .populate('answer');
+
+      res.status(200).json({
+        success: true,
+        data: {
+          questions: questions.map(q => ({
+            question_id: q.question_id,
+            question_text: q.question_text,
+            student_id: q.student_id,
+            lecture_id: q.lecture_id,
+            timestamp: q.timestamp,
+            is_answered: q.is_answered,
+            is_important: q.is_important,
+            upvotes: q.upvotes,
+            upvoted_by: q.upvoted_by,
+            answer: (q.answer || []).map(a => ({
+              answer_id: a._id,
+              answerer_name: a.answerer_name,
+              answer: a.answer,
+              answer_type: a.answer_type
+            }))
+          }))
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: error.message
+      });
+    }
+  },
+
+  // Get all questions for a lecture asked by the current student
+  getMyQuestions: async (req, res) => {
+    try {
+      const studentId = req.user.id;
+      const { lectureId } = req.body;
+      if (!lectureId) {
+        return res.status(400).json({
+          success: false,
+          message: 'lecture_id is required in req.user'
+        });
+      }
+
+      // Find all questions for this lecture asked by this student
+      const questions = await Question.find({ lecture_id: lectureId, student_id: studentId })
+        .populate('answer');
+
+      res.status(200).json({
+        success: true,
+        data: {
+          questions: questions.map(q => ({
+            question_id: q.question_id,
+            question_text: q.question_text,
+            student_id: q.student_id,
+            lecture_id: q.lecture_id,
+            timestamp: q.timestamp,
+            is_answered: q.is_answered,
+            is_important: q.is_important,
+            upvotes: q.upvotes,
+            upvoted_by: q.upvoted_by,
+            answer: (q.answer || []).map(a => ({
+              answer_id: a._id,
+              answerer_name: a.answerer_name,
+              answer: a.answer,
+              answer_type: a.answer_type
+            }))
+          }))
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: error.message
+      });
+    }
+  },
+
+    // Join a course
+  joinCourse: async (req, res) => {
+    try {
+      const { course_id } = req.body; // course_id as per Courses.js
+      const studentId = req.user.id;
+
+      const student = await Student.findById(studentId);
+      const course = await Course.findOne({ course_id });
+
+      if (!course) {
+        return res.status(404).json({
+          success: false,
+          message: 'Course not found'
+        });
+      }
+
+      // Check if already enrolled (students.js: courses_id_enrolled)
+      if (student.courses_id_enrolled.includes(course_id)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Already enrolled in this course'
+        });
+      }
+
+      // Check if already requested (students.js: courses_id_request)
+      if (student.courses_id_request.includes(course_id)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Already requested to join this course'
+        });
+      }
+
+      // Add course to student's request list
+      student.courses_id_request.push(course_id);
+      await student.save();
+
+      // Add student to course's request_list (courses.js: request_list)
+      if (!course.request_list.includes(studentId)) {
+        course.request_list.push(studentId);
+        await course.save();
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Successfully requested to join the course',
+        data: {
+          course: {
+            course_id: course.course_id,
+            course_name: course.course_name,
+            batch: course.batch,
+            branch: course.branch
+          }
         }
       });
     } catch (error) {
@@ -258,7 +482,7 @@ const studentController = {
   },
 
   // Join a class
-  joinClass: async (req, res) => {
+  joinLecture: async (req, res) => {
     try {
       const { lectureId } = req.body;
       const studentId = req.user.id;
@@ -298,16 +522,26 @@ const studentController = {
   },
 
   // Ask a doubt/question
-  askDoubt: async (req, res) => {
+  askQuestion: async (req, res) => {
     try {
-      const { question_text, course_id } = req.body;
+      const { question_text, lecture_id } = req.body;
       const studentId = req.user.id;
 
+      // Generate a unique question_id (could use a UUID or a timestamp+studentId+lectureId)
+      const question_id = `${lecture_id}_${studentId}_${Date.now()}`;
+      const timestamp = new Date();
+
       const newQuestion = new Question({
+        question_id,
         question_text,
         student_id: studentId,
-        course_id,
-        is_answered: false
+        lecture_id,
+        timestamp,
+        is_answered: false,
+        is_important: false,
+        upvotes: 1, // Auto upvote by asker
+        upvoted_by: [studentId],
+        answer: []
       });
 
       await newQuestion.save();
@@ -317,10 +551,16 @@ const studentController = {
         message: 'Question asked successfully',
         data: {
           question: {
-            id: newQuestion._id,
+            question_id: newQuestion.question_id,
             question_text: newQuestion.question_text,
-            course_id: newQuestion.course_id,
-            created_at: newQuestion.createdAt
+            student_id: newQuestion.student_id,
+            lecture_id: newQuestion.lecture_id,
+            timestamp: newQuestion.timestamp,
+            is_answered: newQuestion.is_answered,
+            is_important: newQuestion.is_important,
+            upvotes: newQuestion.upvotes,
+            upvoted_by: newQuestion.upvoted_by,
+            answer: newQuestion.answer
           }
         }
       });
@@ -333,161 +573,63 @@ const studentController = {
     }
   },
 
-  // Get all doubts by student
-  getAllDoubts: async (req, res) => {
+  answerQuestion: async (req, res) => {
     try {
+      const { question_id, answer_text, answer_type } = req.body;
       const studentId = req.user.id;
 
-      const questions = await Question.find({ student_id: studentId })
-        .populate('course_id', 'course_name course_code')
-        .populate('answers');
-
-      res.status(200).json({
-        success: true,
-        data: {
-          questions: questions.map(question => ({
-            id: question._id,
-            question_text: question.question_text,
-            course: question.course_id?.course_name,
-            course_code: question.course_id?.course_code,
-            is_answered: question.is_answered,
-            answers_count: question.answers?.length || 0,
-            created_at: question.createdAt
-          }))
-        }
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Server error',
-        error: error.message
-      });
-    }
-  },
-
-  // Get answered doubts
-  getAnsweredDoubts: async (req, res) => {
-    try {
-      const studentId = req.user.id;
-
-      const questions = await Question.find({ 
-        student_id: studentId,
-        is_answered: true 
-      })
-      .populate('course_id', 'course_name course_code')
-      .populate('answers');
-
-      res.status(200).json({
-        success: true,
-        data: {
-          questions: questions.map(question => ({
-            id: question._id,
-            question_text: question.question_text,
-            course: question.course_id?.course_name,
-            answers: question.answers?.map(answer => ({
-              answer_text: answer.answer_text,
-              teacher_id: answer.teacher_id,
-              created_at: answer.createdAt
-            })),
-            created_at: question.createdAt
-          }))
-        }
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Server error',
-        error: error.message
-      });
-    }
-  },
-
-  // Join a course
-  joinCourse: async (req, res) => {
-    try {
-      const { courseId } = req.body;
-      const studentId = req.user.id;
-
+      // Only allow if student is TA
       const student = await Student.findById(studentId);
-      const course = await Course.findById(courseId);
+      if (!student || !student.is_TA) {
+        return res.status(403).json({
+          success: false,
+          message: 'Only TAs can answer questions.'
+        });
+      }
 
-      if (!course) {
+      const question = await Question.findOne({ question_id });
+      if (!question) {
         return res.status(404).json({
           success: false,
-          message: 'Course not found'
+          message: 'Question not found'
         });
       }
 
-      // Check if already enrolled
-      if (student.courses_id.includes(courseId)) {
-        return res.status(400).json({
-          success: false,
-          message: 'Already enrolled in this course'
-        });
-      }
+      // Create answer according to Answer.js
+      const newAnswer = new Answer({
+        answerer_name: student.name,
+        answer: answer_text,
+        answer_type
+      });
+      await newAnswer.save();
 
-      // Add course to student
-      student.courses_id.push(courseId);
-      await student.save();
+      // Link answer to question
+      question.answer.push(newAnswer._id);
+      question.is_answered = true;
+      await question.save();
 
-      // Add student to course
-      if (!course.students_enrolled.includes(studentId)) {
-        course.students_enrolled.push(studentId);
-        await course.save();
-      }
-
-      res.status(200).json({
+      res.status(201).json({
         success: true,
-        message: 'Successfully joined the course',
+        message: 'Answer submitted successfully',
         data: {
-          course: {
-            id: course._id,
-            course_name: course.course_name,
-            course_code: course.course_code
+          answer: {
+            answer_id: newAnswer._id,
+            answerer_name: newAnswer.answerer_name,
+            answer: newAnswer.answer,
+            answer_type: newAnswer.answer_type
           }
         }
       });
-    } catch (error) {
+    }
+     catch (error) {
       res.status(500).json({
         success: false,
         message: 'Server error',
         error: error.message
       });
     }
-  },
+  }    
 
-  // Get available courses
-  getAvailableCourses: async (req, res) => {
-    try {
-      const studentId = req.user.id;
-      const student = await Student.findById(studentId);
-
-      // Get courses not enrolled by student
-      const availableCourses = await Course.find({ 
-        _id: { $nin: student.courses_id }
-      }).populate('teacher_id', 'name');
-
-      res.status(200).json({
-        success: true,
-        data: {
-          courses: availableCourses.map(course => ({
-            id: course._id,
-            course_name: course.course_name,
-            course_code: course.course_code,
-            description: course.description,
-            teacher: course.teacher_id?.name,
-            students_enrolled: course.students_enrolled?.length || 0
-          }))
-        }
-      });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        message: 'Server error',
-        error: error.message
-      });
-    }
-  }
 };
 
 module.exports = studentController;
