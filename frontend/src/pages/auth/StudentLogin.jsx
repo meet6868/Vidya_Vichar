@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './AuthPage.css';
 
-const TeacherLogin: React.FC = () => {
+const StudentLogin = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
-  const [errors, setErrors] = useState<string[]>([]);
+  const [errors, setErrors] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -19,7 +20,7 @@ const TeacherLogin: React.FC = () => {
   };
 
   const validateForm = () => {
-    const newErrors: string[] = [];
+    const newErrors = [];
     
     if (!formData.email.trim()) newErrors.push('Email is required');
     if (!formData.password) newErrors.push('Password is required');
@@ -28,7 +29,7 @@ const TeacherLogin: React.FC = () => {
     return newErrors.length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) return;
@@ -36,7 +37,7 @@ const TeacherLogin: React.FC = () => {
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/auth/teacher/login', {
+      const response = await fetch('/api/auth/student/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -49,11 +50,11 @@ const TeacherLogin: React.FC = () => {
       if (data.success) {
         // Store token and redirect
         localStorage.setItem('token', data.data.token);
-        localStorage.setItem('userRole', 'teacher');
+        localStorage.setItem('userRole', 'student');
         localStorage.setItem('userData', JSON.stringify(data.data.user));
-        // Redirect to teacher dashboard
+        // Redirect to student dashboard
         console.log('Login successful:', data.message);
-        // window.location.href = '/teacher/dashboard';
+        navigate('/student/dashboard');
       } else {
         setErrors([data.message]);
       }
@@ -69,7 +70,7 @@ const TeacherLogin: React.FC = () => {
       <div className="auth-container">
         <div className="auth-header">
           <Link to="/" className="back-link">← Back to Home</Link>
-          <h1>Teacher Login</h1>
+          <h1>Student Login</h1>
           <p>Welcome back! Please sign in to your account</p>
         </div>
 
@@ -120,14 +121,14 @@ const TeacherLogin: React.FC = () => {
         <div className="auth-footer">
           <p>
             Don't have an account?{' '}
-            <Link to="/teacher/register" className="auth-link">
+            <Link to="/student/register" className="auth-link">
               Register here
             </Link>
           </p>
           <p>
-            Are you a student?{' '}
-            <Link to="/student/login" className="auth-link">
-              Student Login
+            Are you a teacher?{' '}
+            <Link to="/teacher/login" className="auth-link">
+              Teacher Login
             </Link>
           </p>
         </div>
@@ -136,4 +137,4 @@ const TeacherLogin: React.FC = () => {
   );
 };
 
-export default TeacherLogin;
+export default StudentLogin;

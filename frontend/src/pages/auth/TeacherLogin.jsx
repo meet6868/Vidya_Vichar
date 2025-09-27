@@ -1,21 +1,17 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import './AuthPage.css';
 
-interface StudentRegisterProps {}
-
-const StudentRegister: React.FC<StudentRegisterProps> = () => {
+const TeacherLogin = () => {
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
-    password: '',
-    confirmPassword: '',
-    universityId: ''
+    password: ''
   });
-  const [errors, setErrors] = useState<string[]>([]);
+  const [errors, setErrors] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -24,21 +20,16 @@ const StudentRegister: React.FC<StudentRegisterProps> = () => {
   };
 
   const validateForm = () => {
-    const newErrors: string[] = [];
+    const newErrors = [];
     
-    if (!formData.name.trim()) newErrors.push('Name is required');
     if (!formData.email.trim()) newErrors.push('Email is required');
     if (!formData.password) newErrors.push('Password is required');
-    if (formData.password !== formData.confirmPassword) {
-      newErrors.push('Passwords do not match');
-    }
-    if (!formData.universityId.trim()) newErrors.push('University ID is required');
     
     setErrors(newErrors);
     return newErrors.length === 0;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) return;
@@ -46,17 +37,12 @@ const StudentRegister: React.FC<StudentRegisterProps> = () => {
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/auth/student/register', {
+      const response = await fetch('/api/auth/teacher/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          universityId: formData.universityId
-        }),
+        body: JSON.stringify(formData),
       });
 
       const data = await response.json();
@@ -64,9 +50,11 @@ const StudentRegister: React.FC<StudentRegisterProps> = () => {
       if (data.success) {
         // Store token and redirect
         localStorage.setItem('token', data.data.token);
-        localStorage.setItem('userRole', 'student');
-        // Redirect to student dashboard
-        console.log('Registration successful:', data.message);
+        localStorage.setItem('userRole', 'teacher');
+        localStorage.setItem('userData', JSON.stringify(data.data.user));
+        // Redirect to teacher dashboard
+        console.log('Login successful:', data.message);
+        navigate('/teacher/dashboard');
       } else {
         setErrors([data.message]);
       }
@@ -82,8 +70,8 @@ const StudentRegister: React.FC<StudentRegisterProps> = () => {
       <div className="auth-container">
         <div className="auth-header">
           <Link to="/" className="back-link">← Back to Home</Link>
-          <h1>Student Registration</h1>
-          <p>Join Vidya Vichar as a Student</p>
+          <h1>Teacher Login</h1>
+          <p>Welcome back! Please sign in to your account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
@@ -94,19 +82,6 @@ const StudentRegister: React.FC<StudentRegisterProps> = () => {
               ))}
             </div>
           )}
-
-          <div className="form-group">
-            <label htmlFor="name">Full Name</label>
-            <input
-              type="text"
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              placeholder="Enter your full name"
-              required
-            />
-          </div>
 
           <div className="form-group">
             <label htmlFor="email">Email Address</label>
@@ -122,19 +97,6 @@ const StudentRegister: React.FC<StudentRegisterProps> = () => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="universityId">University ID</label>
-            <input
-              type="text"
-              id="universityId"
-              name="universityId"
-              value={formData.universityId}
-              onChange={handleInputChange}
-              placeholder="Enter your university ID"
-              required
-            />
-          </div>
-
-          <div className="form-group">
             <label htmlFor="password">Password</label>
             <input
               type="password"
@@ -142,20 +104,7 @@ const StudentRegister: React.FC<StudentRegisterProps> = () => {
               name="password"
               value={formData.password}
               onChange={handleInputChange}
-              placeholder="Create a password"
-              required
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password</label>
-            <input
-              type="password"
-              id="confirmPassword"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleInputChange}
-              placeholder="Confirm your password"
+              placeholder="Enter your password"
               required
             />
           </div>
@@ -165,15 +114,21 @@ const StudentRegister: React.FC<StudentRegisterProps> = () => {
             className="auth-submit-btn"
             disabled={isLoading}
           >
-            {isLoading ? 'Creating Account...' : 'Create Account'}
+            {isLoading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 
         <div className="auth-footer">
           <p>
-            Already have an account?{' '}
+            Don't have an account?{' '}
+            <Link to="/teacher/register" className="auth-link">
+              Register here
+            </Link>
+          </p>
+          <p>
+            Are you a student?{' '}
             <Link to="/student/login" className="auth-link">
-              Login here
+              Student Login
             </Link>
           </p>
         </div>
@@ -182,4 +137,4 @@ const StudentRegister: React.FC<StudentRegisterProps> = () => {
   );
 };
 
-export default StudentRegister;
+export default TeacherLogin;
