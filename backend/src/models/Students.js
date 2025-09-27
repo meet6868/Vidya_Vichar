@@ -25,16 +25,16 @@ const StudentSchema = new mongoose.Schema({
 		default: false
 	},
     courses_id_request: {
-		type: String,
-		required: true
+		type: [String],
+		default: []
 	},
 	courses_id_enrolled: {
-		type: String,
-		required: true
+		type: [String],
+		default: []
 	},
 	batch: {
 		type: String,
-		enum: ['MT', 'BT', 'PH', 'MS'],
+		enum: ['M.Tech', 'B.Tech', 'PhD', 'MS'],
 		required: true
 	},
 	branch: {
