@@ -24,7 +24,11 @@ const StudentSchema = new mongoose.Schema({
 		type: Boolean,
 		default: false
 	},
-	courses_id: {
+    courses_id_request: {
+		type: String,
+		required: true
+	},
+	courses_id_enrolled: {
 		type: String,
 		required: true
 	},

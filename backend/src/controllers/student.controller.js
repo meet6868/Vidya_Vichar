@@ -10,7 +10,6 @@ const studentController = {
   getStudentOverview: async (req, res) => {
     try {
       const studentId = req.user.id; // From JWT token
-      
       const student = await Student.findById(studentId);
       if (!student) {
         return res.status(404).json({
@@ -19,36 +18,36 @@ const studentController = {
         });
       }
 
-      // Get enrolled courses count
-      const enrolledCourses = await Course.find({ _id: { $in: student.courses_id } });
-      
-      // Get questions asked by student
-      const questionsAsked = await Question.find({ student_id: studentId }).countDocuments();
-      
-      // Get answered questions
-      const answeredQuestions = await Question.find({ 
+      // Number of courses enrolled
+      const numCoursesEnrolled = Array.isArray(student.courses_id_enrolled)
+        ? student.courses_id_enrolled.length
+        : (student.courses_id_enrolled ? 1 : 0);
+
+      // Unanswered questions
+      const unansweredQuestions = await Question.countDocuments({
         student_id: studentId,
-        is_answered: true 
-      }).countDocuments();
+        is_answered: false
+      });
+
+      // Pending course requests
+      const pendingCourses = Array.isArray(student.courses_id_request)
+        ? student.courses_id_request.length
+        : (student.courses_id_request ? 1 : 0);
 
       res.status(200).json({
         success: true,
         data: {
-          student: {
-            name: student.name,
-            roll_no: student.roll_no,
-            batch: student.batch,
-            branch: student.branch
-          },
-          stats: {
-            enrolledCourses: enrolledCourses.length,
-            questionsAsked,
-            answeredQuestions,
-            averageGrade: 4.5 // Mock data for now
-          }
+          name: student.name,
+          roll_no: student.roll_no,
+          batch: student.batch,
+          branch: student.branch,
+          numCoursesEnrolled,
+          unansweredQuestions,
+          pendingCourses
         }
       });
-    } catch (error) {
+    } 
+    catch (error) {
       res.status(500).json({
         success: false,
         message: 'Server error',
@@ -61,7 +60,6 @@ const studentController = {
   getEnrolledCourses: async (req, res) => {
     try {
       const studentId = req.user.id;
-      
       const student = await Student.findById(studentId);
       if (!student) {
         return res.status(404).json({
@@ -70,20 +68,50 @@ const studentController = {
         });
       }
 
-      const courses = await Course.find({ _id: { $in: student.courses_id } })
-        .populate('teacher_id', 'name');
+      // Find all courses where student is in student_list
+      const courses = await Course.find({ student_list: studentId })
+        .populate('teacher_id', 'name')
+        .lean();
+
+      // For each course, calculate duration, remaining time, instructor, and TAs
+      const now = new Date();
+      const courseDetails = await Promise.all(courses.map(async course => {
+        // Duration (in ms)
+        let duration = null;
+        let remainingTime = null;
+        if (course.start_time && course.end_time) {
+          duration = new Date(course.end_time) - new Date(course.start_time);
+          remainingTime = new Date(course.end_time) - now;
+        }
+
+        // Instructor name (assuming teacher_id is populated and can be array or single)
+        let instructorName = '';
+        if (Array.isArray(course.teacher_id) && course.teacher_id.length > 0) {
+          instructorName = course.teacher_id[0].name;
+        } else if (course.teacher_id && course.teacher_id.name) {
+          instructorName = course.teacher_id.name;
+        }
+
+        // Get TAs (students in student_list with is_TA true)
+        let TAs = [];
+        if (Array.isArray(course.student_list) && course.student_list.length > 0) {
+          TAs = await Student.find({ _id: { $in: course.student_list }, is_TA: true }, 'name roll_no');
+        }
+
+        return {
+          id: course._id,
+          course_name: course.course_name,
+          duration, // in ms
+          remainingTime, // in ms
+          instructor: instructorName,
+          TAs: TAs.map(ta => ({ name: ta.name, roll_no: ta.roll_no }))
+        };
+      }));
 
       res.status(200).json({
         success: true,
         data: {
-          courses: courses.map(course => ({
-            id: course._id,
-            course_name: course.course_name,
-            course_code: course.course_code,
-            teacher: course.teacher_id?.name,
-            schedule: course.schedule,
-            students_enrolled: course.students_enrolled?.length || 0
-          }))
+          courses: courseDetails
         }
       });
     } catch (error) {
@@ -95,37 +123,96 @@ const studentController = {
     }
   },
 
-  // Get course details
-  getCourseDetails: async (req, res) => {
+  getPendingCourses: async (req, res) => {
     try {
-      const { courseId } = req.params;
       const studentId = req.user.id;
-
-      const course = await Course.findById(courseId).populate('teacher_id', 'name');
-      if (!course) {
+      const student = await Student.findById(studentId);
+      if (!student) {
         return res.status(404).json({
           success: false,
-          message: 'Course not found'
+          message: 'Student not found'
         });
       }
 
-      // Check if student is enrolled
-      const student = await Student.findById(studentId);
-      const isEnrolled = student.courses_id.includes(courseId);
+      // Find all courses where student id is present in request_list
+      const courses = await Course.find({ request_list: studentId })
+        .populate('teacher_id', 'name')
+        .lean();
+
+      const now = new Date();
+      const courseDetails = await Promise.all(courses.map(async course => {
+        // Duration (in ms)
+        let duration = null;
+        let remainingTime = null;
+        if (course.start_time && course.end_time) {
+          duration = new Date(course.end_time) - new Date(course.start_time);
+          remainingTime = new Date(course.end_time) - now;
+        }
+
+        // Instructor name (assuming teacher_id is populated and can be array or single)
+        let instructorName = '';
+        if (Array.isArray(course.teacher_id) && course.teacher_id.length > 0) {
+          instructorName = course.teacher_id[0].name;
+        } else if (course.teacher_id && course.teacher_id.name) {
+          instructorName = course.teacher_id.name;
+        }
+
+        // Get TAs (students in student_list with is_TA true)
+        let TAs = [];
+        if (Array.isArray(course.student_list) && course.student_list.length > 0) {
+          TAs = await Student.find({ _id: { $in: course.student_list }, is_TA: true }, 'name roll_no');
+        }
+
+        return {
+          id: course._id,
+          course_name: course.course_name,
+          duration, // in ms
+          remainingTime, // in ms
+          instructor: instructorName,
+          TAs: TAs.map(ta => ({ name: ta.name, roll_no: ta.roll_no }))
+        };
+      }));
 
       res.status(200).json({
         success: true,
         data: {
-          course: {
+          courses: courseDetails
+        }
+      });
+    } 
+    catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: error.message
+      });
+    }
+  },
+
+  // Get courses for student by batch and branch
+  getCoursesForStudents: async (req, res) => {
+    try {
+      const studentId = req.user.id;
+      const student = await Student.findById(studentId);
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message: 'Student not found'
+        });
+      }
+
+      const courses = await Course.find({
+        batch: student.batch,
+        branch: student.branch
+      }, '_id course_name');
+
+      res.status(200).json({
+        success: true,
+        data: {
+          courses: courses.map(course => ({
             id: course._id,
-            course_name: course.course_name,
-            course_code: course.course_code,
-            description: course.description,
-            teacher: course.teacher_id?.name,
-            schedule: course.schedule,
-            students_enrolled: course.students_enrolled?.length || 0,
-            isEnrolled
-          }
+            name: course.course_name
+          }))
         }
       });
     } catch (error) {
