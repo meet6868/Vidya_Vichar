@@ -7,16 +7,21 @@ const { authenticate } = require('../controllers/auth.controller');
 
 
 // Student Dashboard Routes
+//GET
 router.get('/student/dashboard/overview', authenticate(['student']), studentController.getStudentOverview);
 router.get('/student/dashboard/enrolled-courses', authenticate(['student']), studentController.getEnrolledCourses);
 router.get('/student/dashboard/pending-courses', authenticate(['student']), studentController.getPendingCourses);
-router.get('/student/dashboard/classes', authenticate(['student']), studentController.getStudentClasses);
-router.post('/student/dashboard/join-class', authenticate(['student']), studentController.joinClass);
-router.post('/student/dashboard/ask-doubt', authenticate(['student']), studentController.askDoubt);
-router.get('/student/dashboard/all-doubts', authenticate(['student']), studentController.getAllDoubts);
-router.get('/student/dashboard/answered-doubts', authenticate(['student']), studentController.getAnsweredDoubts);
+router.get('/student/dashboard/all-courses', authenticate(['student']), studentController.getCoursesForStudents);
+router.get('/student/dashboard/all-lectures', authenticate(['student']), studentController.getStudentLectures);
+router.get('/student/dashboard/prev-lectures', authenticate(['student']), studentController.getPrevStudentLectures);
+router.get('/student/dashboard/all-questions', authenticate(['student']), studentController.getAllQuestions);
+router.get('/student/dashboard/my-questions', authenticate(['student']), studentController.getMyQuestions);
+//POST
 router.post('/student/dashboard/join-course', authenticate(['student']), studentController.joinCourse);
-router.get('/student/dashboard/available-courses', authenticate(['student']), studentController.getAvailableCourses);
+router.post('/student/dashboard/join-class', authenticate(['student']), studentController.joinLecture);
+router.post('/student/dashboard/ask-question', authenticate(['student']), studentController.askQuestion);
+router.post('/student/dashboard/answer-question', authenticate(['student']), studentController.answerQuestion);
+
 
 
 // Teacher Dashboard Routes

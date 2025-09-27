@@ -8,6 +8,11 @@ const QuestionSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  question_text: {
+    type: String,
+    required: true,
+    unique: true
+  },
   student_id: {
     type: String,
     required: true,
@@ -23,6 +28,10 @@ const QuestionSchema = new mongoose.Schema({
     required: true
   },
   is_answered: {
+    type: Boolean,
+    default: false
+  },
+  is_important: {
     type: Boolean,
     default: false
   },
