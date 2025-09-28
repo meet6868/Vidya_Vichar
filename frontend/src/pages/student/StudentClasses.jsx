@@ -1,71 +1,68 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { api } from '../../config/api';
 
 const StudentClasses = ({ userData }) => {
   const [activeTab, setActiveTab] = useState('upcoming');
+  const [upcomingClasses, setUpcomingClasses] = useState([]);
+  const [pastClasses, setPastClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Mock data for classes
-  const upcomingClasses = [
-    {
-      id: 1,
-      courseName: 'Mathematics 101',
-      topic: 'Integration by Parts',
-      instructor: 'Dr. Sarah Johnson',
-      date: '2024-09-28',
-      time: '10:00 AM - 11:30 AM',
-      room: 'Room 101',
-      type: 'Lecture',
-      status: 'scheduled'
-    },
-    {
-      id: 2,
-      courseName: 'Physics 201',
-      topic: 'Quantum Mechanics',
-      instructor: 'Prof. Michael Davis',
-      date: '2024-09-29',
-      time: '2:00 PM - 3:30 PM',
-      room: 'Lab 205',
-      type: 'Lab',
-      status: 'scheduled'
-    },
-    {
-      id: 3,
-      courseName: 'Chemistry 301',
-      topic: 'Organic Compounds',
-      instructor: 'Dr. Emily Chen',
-      date: '2024-09-30',
-      time: '9:00 AM - 10:30 AM',
-      room: 'Room 302',
-      type: 'Lecture',
-      status: 'scheduled'
+  const fetchClasses = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      // Fetch upcoming classes (available classes to join)
+      const availableResponse = await api.student.getAvailableClasses();
+      if (availableResponse && availableResponse.success) {
+        setUpcomingClasses(availableResponse.data || []);
+      }
+      
+      // Fetch past lectures (attended lectures)
+      const pastResponse = await api.student.getPrevLectures();
+      if (pastResponse && pastResponse.success) {
+        setPastClasses(pastResponse.data || []);
+      }
+      
+    } catch (err) {
+      console.error('Error fetching classes:', err);
+      setError('Failed to load classes. Please try again.');
+      setUpcomingClasses([]);
+      setPastClasses([]);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
-  const pastClasses = [
-    {
-      id: 4,
-      courseName: 'Mathematics 101',
-      topic: 'Differential Equations',
-      instructor: 'Dr. Sarah Johnson',
-      date: '2024-09-25',
-      time: '10:00 AM - 11:30 AM',
-      room: 'Room 101',
-      type: 'Lecture',
-      status: 'attended',
-      attendance: 'Present'
-    },
-    {
-      id: 5,
-      courseName: 'Physics 201',
-      topic: 'Thermodynamics',
-      instructor: 'Prof. Michael Davis',
-      date: '2024-09-24',
-      time: '2:00 PM - 3:30 PM',
-      room: 'Lab 205',
-      type: 'Lab',
-      status: 'attended',
-      attendance: 'Present'
+  useEffect(() => {
+    if (userData?.id) {
+      fetchClasses();
     }
-  ];
+  }, [userData]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        <span className="ml-3 text-slate-600">Loading classes...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-red-600 mb-4">{error}</div>
+        <button 
+          onClick={fetchClasses}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   const getTypeColor = (type) => {
     return type === 'Lab' 

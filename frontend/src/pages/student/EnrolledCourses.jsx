@@ -22,27 +22,8 @@ const EnrolledCourses = ({ userData }) => {
   };
 
   useEffect(() => {
-    // Temporarily bypass API and show mock data for testing
-    const bypassAPI = false; // Set to true to skip API call
-
-    console.log(userData)
+    console.log('EnrolledCourses: userData:', userData);
     
-    if (bypassAPI) {
-      console.log('Bypassing API, showing mock data');
-      setEnrolledCourses([
-        {
-          id: 1,
-          course_name: 'Mathematics 101',
-          instructor: 'Dr. Sarah Johnson',
-          duration: 10368000000,
-          remainingTime: 2592000000,
-          TAs: [{ name: 'John Smith', roll_no: 'TA001' }]
-        }
-      ]);
-      setLoading(false);
-      return;
-    }
-
     if (userData?.id) {
       fetchEnrolledCourses();
     } else {

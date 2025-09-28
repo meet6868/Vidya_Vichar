@@ -41,41 +41,7 @@ const StudentDashboard = () => {
     console.log('Current location:', location.pathname);
     console.log('User:', userData?.name, '| Role:', localStorage.getItem('userRole'));
     
-    // Check if auth bypass is enabled
-    const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
-    console.log('Bypass auth enabled:', bypassAuth);
-    
-    if (bypassAuth) {
-      console.log('Using auth bypass with mock data');
-      
-      // Set mock authentication data for API requests
-      localStorage.setItem('userRole', 'student');
-      localStorage.setItem('token', 'mock-jwt-token-for-development');
-      localStorage.setItem('userData', JSON.stringify({
-        id: 'STU001',
-        name: 'John Doe',
-        roll_no: '001',
-        batch: 'B.Tech',
-        branch: 'CSE',
-        username: 'john.doe@university.edu',
-        is_TA: false
-      }));
-      
-      // Mock user data for development
-      setUserData({
-        id: 'STU001',
-        name: 'John Doe',
-        roll_no: '001',
-        batch: 'B.Tech',
-        branch: 'CSE',
-        username: 'john.doe@university.edu',
-        is_TA: false
-      });
-      setLoading(false);
-      return;
-    }
-
-    // Check localStorage contents
+    // Check authentication
     const userRole = localStorage.getItem('userRole');
     const storedUserData = localStorage.getItem('userData');
     const token = localStorage.getItem('token');
@@ -83,10 +49,7 @@ const StudentDashboard = () => {
     console.log('=== LOCALSTORAGE STATUS ===');
     console.log('userRole:', userRole);
     console.log('storedUserData exists:', !!storedUserData);
-    console.log('storedUserData length:', storedUserData ? storedUserData.length : 0);
     console.log('token exists:', !!token);
-    console.log('token preview:', token ? token.substring(0, 20) + '...' : 'None');
-    console.log('Raw storedUserData:', storedUserData);
     
     // Check for cookie (if accessible)
     console.log('Document cookies:', document.cookie);

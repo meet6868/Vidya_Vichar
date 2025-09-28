@@ -30,55 +30,20 @@ const MyCourse = () => {
       setLoading(true);
       console.log('🔍 fetchCourses: Starting API call...');
       console.log('🔍 Auth token exists:', !!localStorage.getItem('token'));
-      console.log('🔍 User role:', localStorage.getItem('userRole'));
-      console.log('🔍 User data:', JSON.parse(localStorage.getItem('userData') || '{}'));
       
-      // Enable real API calls instead of mock data
-      const useMockData = false; // Set to true to use mock data for testing
+      // Fetch real data from backend
+      const response = await apiRequest('/users/teacher/courses/detailed');
+      console.log('🔍 fetchCourses API response:', response);
       
-      if (!useMockData) {
-        const response = await apiRequest('/users/teacher/courses/detailed');
-        console.log('🔍 fetchCourses API response:', response);
-        
-        if (response.success) {
-          setCourses(response.data || []);
-          return;
-        }
+      if (response && response.success) {
+        setCourses(response.data || []);
+        console.log('✅ fetchCourses: Set courses data:', response.data);
+      } else {
+        console.warn('⚠️ fetchCourses: Invalid response format:', response);
+        setCourses([]);
       }
-      
-      // Use fallback mock data
-      setCourses([
-        {
-          course_id: 'CS101',
-          course_name: 'Introduction to Computer Science',
-          description: 'Basic concepts of programming and computer science',
-          batch: 'B.Tech CSE 2024',
-          branch: 'Computer Science',
-          students_enrolled: 45,
-          created_at: new Date('2024-09-01')
-        },
-        {
-          course_id: 'CS201', 
-          course_name: 'Data Structures and Algorithms',
-          description: 'Advanced data structures and algorithm design',
-          batch: 'B.Tech CSE 2024',
-          branch: 'Computer Science',
-          students_enrolled: 38,
-          created_at: new Date('2024-09-10')
-        },
-        {
-            course_id: 'CS301',
-            course_name: 'Database Management Systems',
-            description: 'Fundamentals of database design and SQL',
-            batch: 'B.Tech CSE 2024',
-            branch: 'Computer Science',
-            students_enrolled: 42,
-            created_at: new Date('2024-09-15')
-          }
-        ]);
       } catch (error) {
         console.error('Error fetching courses:', error);
-        // Fallback mock data
         setCourses([]);
       } finally {
         setLoading(false);
@@ -197,49 +162,15 @@ const TeacherDashboard = () => {
     console.log('User:', userData?.name, '| Role:', localStorage.getItem('userRole'));
     
     // Check if auth bypass is enabled - always enable for development
-    const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true' || import.meta.env.NODE_ENV === 'development';
-    console.log('Bypass auth enabled:', bypassAuth, '(ENV VITE_BYPASS_AUTH:', import.meta.env.VITE_BYPASS_AUTH, ', NODE_ENV:', import.meta.env.NODE_ENV, ')');
-    
-    // Always set mock data for development to ensure tokens work
-    console.log('🔧 Setting mock authentication data for development');
-    localStorage.setItem('userRole', 'teacher');
-    localStorage.setItem('token', 'mock-jwt-token-for-development');
-    localStorage.setItem('userData', JSON.stringify({
-      id: 'TEACH001',
-      teacherId: 'TEACH001',
-      name: 'Dr. Jane Smith',
-      teacher_id: 'TEACH001',
-      username: 'jane.smith@university.edu',
-      courses_id: ['CS101', 'CS201']
-    }));
-    
-    if (bypassAuth) {
-      console.log('Using auth bypass with mock data');
-      
-      // Mock user data for development
-      setUserData({
-        id: 'TEACH001',
-        name: 'Dr. Jane Smith',
-        teacher_id: 'TEACH001',
-        username: 'jane.smith@university.edu',
-        courses_id: ['CS101', 'CS201']
-      });
-      setLoading(false);
-      return;
-    }
-
-    // Check localStorage contents
+    // Check if user is authenticated
     const userRole = localStorage.getItem('userRole');
     const storedUserData = localStorage.getItem('userData');
     const token = localStorage.getItem('token');
     
-    console.log('=== LOCALSTORAGE STATUS ===');
+    console.log('=== AUTHENTICATION CHECK ===');
     console.log('userRole:', userRole);
     console.log('storedUserData exists:', !!storedUserData);
-    console.log('storedUserData length:', storedUserData ? storedUserData.length : 0);
     console.log('token exists:', !!token);
-    console.log('token preview:', token ? token.substring(0, 20) + '...' : 'None');
-    console.log('Raw storedUserData:', storedUserData);
     
     // Check for cookie (if accessible)
     console.log('Document cookies:', document.cookie);
@@ -333,20 +264,6 @@ const TeacherDashboard = () => {
     localStorage.removeItem('userRole');
     localStorage.removeItem('userData');
     navigate('/');
-  };
-
-  const handleDebugToken = () => {
-    console.log('🔧 DEBUG TOKEN INFO:');
-    console.log('Current token:', localStorage.getItem('token'));
-    console.log('Current userRole:', localStorage.getItem('userRole'));
-    console.log('Current userData:', localStorage.getItem('userData'));
-    
-    // Force set the token
-    localStorage.setItem('userRole', 'teacher');
-    localStorage.setItem('token', 'mock-jwt-token-for-development');
-    
-    console.log('✅ Token set to: mock-jwt-token-for-development');
-    alert('Debug: Token has been set in localStorage. Check console for details.');
   };
 
   const handleClassCreated = (lectureData) => {
@@ -444,39 +361,9 @@ const TeacherDashboard = () => {
             return;
           }
         } catch (apiError) {
-          console.log('🔍 API failed, using fallback data:', apiError.message);
+          console.log('🔍 API failed:', apiError.message);
+          setCourses([]);
         }
-        
-        // Fallback mock data if API fails
-        setCourses([
-          {
-            course_id: 'CS101',
-            course_name: 'Introduction to Computer Science',
-            description: 'Basic concepts of programming and computer science',
-            batch: 'B.Tech CSE 2024',
-            branch: 'Computer Science',
-            students_enrolled: 45,
-            created_at: new Date('2024-09-01')
-          },
-          {
-            course_id: 'CS201', 
-            course_name: 'Data Structures and Algorithms',
-            description: 'Advanced data structures and algorithm design',
-            batch: 'B.Tech CSE 2024',
-            branch: 'Computer Science',
-            students_enrolled: 38,
-            created_at: new Date('2024-09-10')
-          },
-          {
-            course_id: 'CS301',
-            course_name: 'Database Management Systems',
-            description: 'Fundamentals of database design and SQL',
-            batch: 'B.Tech CSE 2024',
-            branch: 'Computer Science',
-            students_enrolled: 42,
-            created_at: new Date('2024-09-15')
-          }
-        ]);
       } catch (error) {
         console.error('Error fetching courses:', error);
         setCourses([]);
@@ -490,60 +377,24 @@ const TeacherDashboard = () => {
         setLoading(true);
         console.log('🔍 fetchCourseLectures: Starting API call for course:', courseId);
         
-        // Try to fetch from API first
-        try {
-          const response = await apiRequest(`/users/teacher/course/${courseId}/completed-lectures`);
-          console.log('🔍 fetchCourseLectures API response:', response);
-          
-          if (response.success) {
-            setLectures(response.data.lectures || []);
-            setSelectedCourse(response.data.course);
-            setView('lectures');
-            return;
-          }
-        } catch (apiError) {
-          console.log('🔍 Lectures API failed, using fallback data:', apiError.message);
-        }
+        const response = await apiRequest(`/users/teacher/course/${courseId}/completed-lectures`);
+        console.log('🔍 fetchCourseLectures API response:', response);
         
-        // Fallback mock data if API fails
-        const courseName = courses.find(c => c.course_id === courseId)?.course_name || 'Unknown Course';
-        setLectures([
-          {
-            lecture_id: 'LEC001',
-            lecture_title: 'Introduction to Programming Concepts',
-            course_name: courseName,
-            class_start: new Date('2024-09-20T10:00:00'),
-            class_end: new Date('2024-09-20T11:30:00'),
-            lec_num: 1,
-            students_attended: 42,
-            questions_count: 8
-          },
-          {
-            lecture_id: 'LEC002',
-            lecture_title: 'Variables and Data Types',
-            course_name: courseName,
-            class_start: new Date('2024-09-22T10:00:00'),
-            class_end: new Date('2024-09-22T11:30:00'),
-            lec_num: 2,
-            students_attended: 38,
-            questions_count: 12
-          },
-          {
-            lecture_id: 'LEC003',
-            lecture_title: 'Control Structures and Loops',
-            course_name: courseName,
-            class_start: new Date('2024-09-25T10:00:00'),
-            class_end: new Date('2024-09-25T11:30:00'),
-            lec_num: 3,
-            students_attended: 40,
-            questions_count: 6
-          }
-        ]);
-        setSelectedCourse(courses.find(c => c.course_id === courseId));
-        setView('lectures');
+        if (response && response.success) {
+          setLectures(response.data.lectures || []);
+          setSelectedCourse(response.data.course);
+          setView('lectures');
+        } else {
+          console.warn('⚠️ fetchCourseLectures: Invalid response format:', response);
+          setLectures([]);
+          setSelectedCourse(courses.find(c => c.course_id === courseId));
+          setView('lectures');
+        }
       } catch (error) {
         console.error('Error fetching lectures:', error);
         setLectures([]);
+        setSelectedCourse(courses.find(c => c.course_id === courseId));
+        setView('lectures');
       } finally {
         setLoading(false);
       }
@@ -756,14 +607,6 @@ const TeacherDashboard = () => {
               <div className="text-sm font-semibold text-slate-900">Welcome, {userData?.name || 'Teacher'}</div>
               <div className="text-xs text-slate-500">{userData?.teacher_id || 'Teacher ID'}</div>
             </div>
-            {/* Debug Button (Development only) */}
-            <button 
-              onClick={handleDebugToken}
-              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 focus:outline-none transition-all duration-200"
-              title="Debug: Set Auth Token"
-            >
-              🔧 Token
-            </button>
             <button 
               onClick={handleLogout}
               className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 transition-all duration-200 shadow-sm hover:shadow-md"

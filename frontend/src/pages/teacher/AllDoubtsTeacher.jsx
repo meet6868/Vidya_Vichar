@@ -47,11 +47,10 @@ const AllDoubtsTeacher = ({ userData, selectedLecture }) => {
           console.log('🔍 AllDoubtsTeacher fetchedQuestions from API:', fetchedQuestions);
           console.log('🔍 AllDoubtsTeacher fetchedQuestions count:', fetchedQuestions.length);
           
-          // Add mock student names since API doesn't provide them
-          const mockStudentNames = ['John Doe', 'Jane Smith', 'Mike Johnson', 'Sarah Wilson', 'Alex Brown', 'Emily Davis'];
+          // Process the questions from API
           fetchedQuestions = fetchedQuestions.map((question, index) => ({
             ...question,
-            student_name: mockStudentNames[index % mockStudentNames.length] || 'Unknown Student',
+            student_name: question.student_name || `Student ${question.student_id || index + 1}`,
             answer_count: question.answer ? question.answer.length : 0,
             lecture_title: selectedLecture?.lecture_title || 'Unknown Lecture',
             course_name: selectedLecture?.course_name || selectedLecture?.course_id || 'Unknown Course',
@@ -69,126 +68,15 @@ const AllDoubtsTeacher = ({ userData, selectedLecture }) => {
           
           console.log('🔍 AllDoubtsTeacher final filteredQuestions:', filteredQuestions);
           setQuestions(filteredQuestions);
-          return;
         } else {
           console.log('🔍 AllDoubtsTeacher API response not successful or no data:', response);
+          setQuestions([]);
         }
       } catch (apiError) {
-        console.log('🔍 AllDoubtsTeacher Questions API failed, using fallback data:', apiError.message);
+        console.log('🔍 AllDoubtsTeacher Questions API failed:', apiError.message);
         console.error('🔍 AllDoubtsTeacher API Error details:', apiError);
+        setQuestions([]);
       }
-      
-      // Fallback mock data if API fails
-      const mockQuestions = [
-        {
-          question_id: 'Q001',
-          question_text: selectedLecture 
-            ? `What are the key concepts covered in "${selectedLecture.lecture_title}"?`
-            : 'What is the difference between arrays and linked lists?',
-          student_name: 'John Doe',
-          lecture_title: selectedLecture?.lecture_title || 'Introduction to Data Structures',
-          course_name: selectedLecture?.course_name || 'Computer Science 101',
-          timestamp: new Date('2024-09-25T10:30:00'),
-          is_answered: true,
-          answer_count: 2,
-          upvotes: 3,
-          answer: [
-            {
-              answer_id: 'A001',
-              answerer_name: 'Dr. Jane Smith',
-              answer: 'Arrays store elements in contiguous memory locations, making random access O(1). Linked lists store elements in nodes with pointers, making sequential access necessary but allowing dynamic size.',
-              answer_type: 'text'
-            },
-            {
-              answer_id: 'A002', 
-              answerer_name: 'Prof. Mike Johnson',
-              answer: 'Additionally, arrays have better cache locality due to contiguous memory, while linked lists offer better insertion/deletion performance at arbitrary positions.',
-              answer_type: 'text'
-            }
-          ]
-        },
-        {
-          question_id: 'Q002',
-          question_text: selectedLecture 
-            ? `Can you provide more examples related to "${selectedLecture.lecture_title}"?`
-            : 'How do I implement a stack using arrays?',
-          student_name: 'Jane Smith',
-          lecture_title: selectedLecture?.lecture_title || 'Arrays and Stacks',
-          course_name: selectedLecture?.course_name || 'Computer Science 101',
-          timestamp: new Date('2024-09-25T11:00:00'),
-          is_answered: false,
-          answer_count: 0,
-          upvotes: 1,
-          answer: []
-        },
-        {
-          question_id: 'Q003',
-          question_text: selectedLecture 
-            ? `I'm confused about a specific part of "${selectedLecture.lecture_title}". Could you clarify?`
-            : 'Can you explain time complexity with an example?',
-          student_name: 'Mike Johnson',
-          lecture_title: selectedLecture?.lecture_title || 'Algorithm Analysis',
-          course_name: selectedLecture?.course_name || 'Computer Science 101',
-          timestamp: new Date('2024-09-25T11:15:00'),
-          is_answered: true,
-          answer_count: 1,
-          upvotes: 0,
-          answer: [
-            {
-              answer_id: 'A003',
-              answerer_name: 'Dr. Jane Smith',
-              answer: 'Time complexity measures how the running time of an algorithm grows with input size. For example, O(n) means the time grows linearly with input size.',
-              answer_type: 'text'
-            }
-          ]
-        }
-      ];
-      
-      if (selectedLecture) {
-        // Add more lecture-specific questions
-        mockQuestions.push(
-          {
-            question_id: 'Q004',
-            question_text: `What are the practical applications of what we learned in "${selectedLecture.lecture_title}"?`,
-            student_name: 'Sarah Wilson',
-            lecture_title: selectedLecture.lecture_title,
-            course_name: selectedLecture.course_name,
-            timestamp: new Date('2024-09-25T11:20:00'),
-            is_answered: false,
-            answer_count: 0,
-            upvotes: 0,
-            answer: []
-          },
-          {
-            question_id: 'Q005',
-            question_text: `Could you recommend some resources to practice "${selectedLecture.lecture_title}"?`,
-            student_name: 'Alex Brown',
-            lecture_title: selectedLecture.lecture_title,
-            course_name: selectedLecture.course_name,
-            timestamp: new Date('2024-09-25T11:25:00'),
-            is_answered: true,
-            answer_count: 1,
-            upvotes: 2,
-            answer: [
-              {
-                answer_id: 'A005',
-                answerer_name: 'Teaching Assistant',
-                answer: 'I recommend checking out LeetCode for practice problems and GeeksforGeeks for theoretical concepts. Also, try implementing the concepts in your preferred programming language.',
-                answer_type: 'text'
-              }
-            ]
-          }
-        );
-      }
-      
-      let filteredQuestions = mockQuestions;
-      if (filter === 'answered') {
-        filteredQuestions = mockQuestions.filter(q => q.is_answered);
-      } else if (filter === 'unanswered') {
-        filteredQuestions = mockQuestions.filter(q => !q.is_answered);
-      }
-      
-      setQuestions(filteredQuestions);
     } catch (error) {
       console.error('Error fetching questions:', error);
       setQuestions([]);
@@ -247,22 +135,8 @@ const AllDoubtsTeacher = ({ userData, selectedLecture }) => {
     try {
       setSubmittingAnswer(true);
       
-      // Debug: Check token status
-      console.log('🔍 AllDoubts Current token in localStorage:', localStorage.getItem('token'));
-      console.log('🔍 AllDoubts Current userRole in localStorage:', localStorage.getItem('userRole'));
-      
-      // FORCE set the token for development (direct fix)
-      console.log('🔧 AllDoubts FORCE Setting mock token for development');
-      localStorage.setItem('token', 'mock-jwt-token-for-development');
-      localStorage.setItem('userRole', 'teacher');
-      
-      // Also directly include the token in the request headers
       const response = await apiRequest('/users/teacher/question/answer', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer mock-jwt-token-for-development'
-        },
         body: JSON.stringify({
           question_id: selectedQuestion.question_id,
           answer_text: answerText.trim(),

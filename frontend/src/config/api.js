@@ -38,19 +38,41 @@ const API_CONFIG = {
     
     // Teacher endpoints - matching backend routes exactly
     TEACHER: {
-      DASHBOARD: '/users/teacher/dashboard',
+      // Dashboard and Profile
       OVERVIEW: '/users/teacher/dashboard/overview',
       PROFILE: '/users/teacher/dashboard/profile',
-      CREATE_COURSE: '/users/teacher/dashboard/create-course',
-      YOUR_COURSES: '/users/teacher/dashboard/your-courses',
-      COURSE_DETAILS: '/users/teacher/dashboard/course/:courseId',
-      CREATE_CLASS: '/users/teacher/dashboard/create-class',
-      CLASS_PAGE: '/users/teacher/dashboard/class-page/:classId',
-      JOINED_STUDENTS: '/users/teacher/dashboard/joined-students/:classId',
-      ALL_DOUBTS: '/users/teacher/dashboard/doubts-tabs/all',
-      UNANSWERED_DOUBTS: '/users/teacher/dashboard/doubts-tabs/unanswered',
-      ANSWERED_DOUBTS: '/users/teacher/dashboard/doubts-tabs/answered',
-      END_CLASS: '/users/teacher/dashboard/end-class/:classId',
+      COURSES_DETAILED: '/users/teacher/courses/detailed',
+      ALL_TEACHERS: '/users/teacher/all',
+      TEACHER_BY_ID: '/users/teacher/:teacher_id',
+      ALL_COURSES: '/users/teacher/courses',
+      
+      // Course Management
+      CREATE_COURSE: '/users/teacher/course',
+      PENDING_REQUESTS: '/users/teacher/course/:course_id/pending-requests',
+      COURSE_STUDENTS: '/users/teacher/course/:course_id/students',
+      STUDENT_BY_ID: '/users/teacher/course/:course_id/student/:student_id',
+      COMPLETED_LECTURES: '/users/teacher/completed-lectures',
+      COURSE_COMPLETED_LECTURES: '/users/teacher/course/:course_id/completed-lectures',
+      LIVE_CLASSES: '/users/teacher/live-classes',
+      
+      // Lecture Management
+      CREATE_LECTURE: '/users/teacher/lecture',
+      LECTURE_QUESTIONS: '/users/teacher/lecture/:lecture_id/questions',
+      END_LECTURE: '/users/teacher/lecture/end',
+      DELETE_LECTURE: '/users/teacher/lecture/:lecture_id',
+      
+      // Question/Answer Management
+      QUESTION_ANSWERS: '/users/teacher/question/:question_id/answers',
+      ANSWER_QUESTION: '/users/teacher/question/answer',
+      DELETE_QUESTION: '/users/teacher/question/:question_id',
+      DELETE_ANSWER: '/users/teacher/answer/:answer_id',
+      
+      // Course Requests
+      ACCEPT_REQUESTS: '/users/teacher/course/accept-requests',
+      REJECT_REQUESTS: '/users/teacher/course/reject-requests',
+      HANDLE_COURSE_REQUEST: '/users/teacher/course-request/:requestId/:action',
+      REMOVE_STUDENT: '/users/teacher/course/:course_id/remove-student',
+      MAKE_TA: '/users/teacher/course/make-ta',
     },
     
     // Course endpoints
@@ -101,45 +123,21 @@ export const getAuthHeaders = () => {
     ...API_CONFIG.DEFAULT_HEADERS
   };
   
-  console.log('🔍 getAuthHeaders called - Current localStorage:');
-  console.log('  - token:', localStorage.getItem('token'));
-  console.log('  - userRole:', localStorage.getItem('userRole'));
-  
   // Add Authorization header if token exists in localStorage
-  let token = localStorage.getItem('token');
+  const token = localStorage.getItem('token');
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
-    console.log('✅ Added Authorization header with existing token');
+    console.log('✅ Added Authorization header with token');
   } else {
-    // Development fallback - check if we're in bypass mode
-    const userRole = localStorage.getItem('userRole');
-    console.log('🔧 No token found, checking userRole:', userRole);
-    
-    if (userRole && (userRole === 'teacher' || userRole === 'student')) {
-      // Auto-set development token
-      const mockToken = 'mock-jwt-token-for-development';
-      localStorage.setItem('token', mockToken);
-      headers['Authorization'] = `Bearer ${mockToken}`;
-      console.log('✅ Auto-set development token for role:', userRole);
-      token = mockToken;
-    } else {
-      console.log('❌ No token and no userRole found, relying on HTTP-only cookies');
-    }
+    console.log('❌ No authentication token found in localStorage');
   }
   
-  console.log('🔍 Final headers:', headers);
   return headers;
 };
 
 // API request wrapper with error handling and cross-origin support
 export const apiRequest = async (endpoint, options = {}) => {
   const url = getApiUrl(endpoint);
-  
-  // Debug: Log the token status before making the request
-  console.log('🔍 apiRequest DEBUG - Before getAuthHeaders():');
-  console.log('  - endpoint:', endpoint);
-  console.log('  - localStorage token:', localStorage.getItem('token'));
-  console.log('  - localStorage userRole:', localStorage.getItem('userRole'));
   
   const config = {
     credentials: 'include', // Include cookies in all requests
@@ -160,7 +158,6 @@ export const apiRequest = async (endpoint, options = {}) => {
   }
 
   console.log('API Request:', { url, method: config.method || 'GET', hasToken: !!localStorage.getItem('token') });
-  console.log('🔍 Final config headers:', config.headers);
 
   try {
     // Create a timeout promise
@@ -326,9 +323,7 @@ export const api = {
   
   // Teacher methods
   teacher: {
-    getDashboard: () => 
-      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.DASHBOARD),
-    
+    // Dashboard and Profile
     getOverview: () => 
       apiRequest(API_CONFIG.ENDPOINTS.TEACHER.OVERVIEW),
     
@@ -341,42 +336,112 @@ export const api = {
         body: JSON.stringify(profileData)
       }),
     
+    // Course Management
+    getCoursesDetailed: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.COURSES_DETAILED),
+    
+    getAllCourses: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.ALL_COURSES),
+    
+    getAllTeachers: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.ALL_TEACHERS),
+    
+    getTeacherById: (teacherId) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.TEACHER_BY_ID.replace(':teacher_id', teacherId)),
+    
     createCourse: (courseData) => 
       apiRequest(API_CONFIG.ENDPOINTS.TEACHER.CREATE_COURSE, {
         method: 'POST',
         body: JSON.stringify(courseData)
       }),
     
-    getYourCourses: () => 
-      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.YOUR_COURSES),
+    getPendingRequests: (courseId) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.PENDING_REQUESTS.replace(':course_id', courseId)),
     
-    getCourseDetails: (courseId) => 
-      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.COURSE_DETAILS.replace(':courseId', courseId)),
+    getCourseStudents: (courseId) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.COURSE_STUDENTS.replace(':course_id', courseId)),
     
-    createClass: (classData) => 
-      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.CREATE_CLASS, {
+    getStudentById: (courseId, studentId) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.STUDENT_BY_ID.replace(':course_id', courseId).replace(':student_id', studentId)),
+    
+    getCompletedLectures: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.COMPLETED_LECTURES),
+    
+    getCourseCompletedLectures: (courseId) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.COURSE_COMPLETED_LECTURES.replace(':course_id', courseId)),
+    
+    getLiveClasses: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.LIVE_CLASSES),
+    
+    // Lecture Management
+    createLecture: (lectureData) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.CREATE_LECTURE, {
         method: 'POST',
-        body: JSON.stringify(classData)
+        body: JSON.stringify(lectureData)
       }),
     
-    getClassPage: (classId) => 
-      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.CLASS_PAGE.replace(':classId', classId)),
+    getLectureQuestions: (lectureId) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.LECTURE_QUESTIONS.replace(':lecture_id', lectureId)),
     
-    getJoinedStudents: (classId) => 
-      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.JOINED_STUDENTS.replace(':classId', classId)),
+    endLecture: (lectureData) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.END_LECTURE, {
+        method: 'POST',
+        body: JSON.stringify(lectureData)
+      }),
     
-    getAllDoubts: () => 
-      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.ALL_DOUBTS),
+    deleteLecture: (lectureId) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.DELETE_LECTURE.replace(':lecture_id', lectureId), {
+        method: 'DELETE'
+      }),
     
-    getUnansweredDoubts: () => 
-      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.UNANSWERED_DOUBTS),
+    // Question/Answer Management
+    getQuestionAnswers: (questionId) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.QUESTION_ANSWERS.replace(':question_id', questionId)),
     
-    getAnsweredDoubts: () => 
-      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.ANSWERED_DOUBTS),
+    answerQuestion: (questionData) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.ANSWER_QUESTION, {
+        method: 'POST',
+        body: JSON.stringify(questionData)
+      }),
     
-    endClass: (classId) => 
-      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.END_CLASS.replace(':classId', classId), {
+    deleteQuestion: (questionId) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.DELETE_QUESTION.replace(':question_id', questionId), {
+        method: 'DELETE'
+      }),
+    
+    deleteAnswer: (answerId) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.DELETE_ANSWER.replace(':answer_id', answerId), {
+        method: 'DELETE'
+      }),
+    
+    // Course Requests
+    acceptRequests: (requestData) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.ACCEPT_REQUESTS, {
+        method: 'POST',
+        body: JSON.stringify(requestData)
+      }),
+    
+    rejectRequests: (requestData) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.REJECT_REQUESTS, {
+        method: 'POST',
+        body: JSON.stringify(requestData)
+      }),
+    
+    handleCourseRequest: (requestId, action) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.HANDLE_COURSE_REQUEST.replace(':requestId', requestId).replace(':action', action), {
         method: 'POST'
+      }),
+    
+    removeStudent: (courseId, studentData) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.REMOVE_STUDENT.replace(':course_id', courseId), {
+        method: 'DELETE',
+        body: JSON.stringify(studentData)
+      }),
+    
+    makeTA: (taData) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.MAKE_TA, {
+        method: 'POST',
+        body: JSON.stringify(taData)
       }),
   }
 };
