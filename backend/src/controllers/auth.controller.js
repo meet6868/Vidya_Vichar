@@ -111,6 +111,7 @@ exports.loginStudent = async (req, res) => {
       success: true,
       message: 'Login successful',
       role: 'student',
+      token: token,
       user: { id: user._id, username: user.username, name: user.name, roll_no: user.roll_no, is_TA: user.is_TA, batch: user.batch, branch: user.branch }
     });
   } 
