@@ -3,7 +3,7 @@ const API_CONFIG = {
   // Base URL for all API calls
   BASE_URL: process.env.NODE_ENV === 'production' 
     ? (import.meta.env.VITE_PRODUCTION_API_URL || 'https://your-production-domain.com/api')  // Production API URL from env
-    : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'),                    // Development API URL from env
+    : (import.meta.env.VITE_API_BASE_URL || 'http://10.42.0.33:5000/api'),                    // Development API URL from env - FIXED TO BACKEND IP
   
   // API Endpoints
   ENDPOINTS: {
@@ -17,23 +17,40 @@ const API_CONFIG = {
       REFRESH_TOKEN: '/auth/refresh',
     },
     
-    // Student endpoints
+    // Student endpoints - matching backend routes exactly
     STUDENT: {
       BATCH_OPTIONS: '/auth/student/batch-options',
       BRANCH_OPTIONS: '/auth/student/branch-options',
-      DASHBOARD: '/student/dashboard',
-      COURSES: '/student/courses',
-      DOUBTS: '/student/doubts',
-      PROFILE: '/student/profile',
+      DASHBOARD: '/users/student/dashboard',
+      OVERVIEW: '/users/student/dashboard/overview',
+      ENROLLED_COURSES: '/users/student/dashboard/enrolled-courses',
+      PENDING_COURSES: '/users/student/dashboard/pending-courses',
+      ALL_COURSES: '/users/student/dashboard/all-courses',
+      ALL_LECTURES: '/users/student/dashboard/all-lectures',
+      PREV_LECTURES: '/users/student/dashboard/prev-lectures',
+      ALL_QUESTIONS: '/users/student/dashboard/all-questions',
+      MY_QUESTIONS: '/users/student/dashboard/my-questions',
+      JOIN_COURSE: '/users/student/dashboard/join-course',
+      JOIN_CLASS: '/users/student/dashboard/join-class',
+      ASK_QUESTION: '/users/student/dashboard/ask-question',
+      ANSWER_QUESTION: '/users/student/dashboard/answer-question',
     },
     
-    // Teacher endpoints
+    // Teacher endpoints - matching backend routes exactly
     TEACHER: {
-      DASHBOARD: '/teacher/dashboard',
-      COURSES: '/teacher/courses',
-      STUDENTS: '/teacher/students',
-      DOUBTS: '/teacher/doubts',
-      PROFILE: '/teacher/profile',
+      DASHBOARD: '/users/teacher/dashboard',
+      OVERVIEW: '/users/teacher/dashboard/overview',
+      PROFILE: '/users/teacher/dashboard/profile',
+      CREATE_COURSE: '/users/teacher/dashboard/create-course',
+      YOUR_COURSES: '/users/teacher/dashboard/your-courses',
+      COURSE_DETAILS: '/users/teacher/dashboard/course/:courseId',
+      CREATE_CLASS: '/users/teacher/dashboard/create-class',
+      CLASS_PAGE: '/users/teacher/dashboard/class-page/:classId',
+      JOINED_STUDENTS: '/users/teacher/dashboard/joined-students/:classId',
+      ALL_DOUBTS: '/users/teacher/dashboard/doubts-tabs/all',
+      UNANSWERED_DOUBTS: '/users/teacher/dashboard/doubts-tabs/unanswered',
+      ANSWERED_DOUBTS: '/users/teacher/dashboard/doubts-tabs/answered',
+      END_CLASS: '/users/teacher/dashboard/end-class/:classId',
     },
     
     // Course endpoints
@@ -80,14 +97,23 @@ export const getApiUrlWithParams = (endpoint, params = {}) => {
 
 // Helper function for authenticated requests
 export const getAuthHeaders = () => {
-  // Since token is in cookies, we don't need to get it from localStorage
-  // But we keep the default headers
-  return {
+  const headers = {
     ...API_CONFIG.DEFAULT_HEADERS
   };
+  
+  // Add Authorization header if token exists in localStorage
+  const token = localStorage.getItem('token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+    console.log('Added Authorization header with token');
+  } else {
+    console.log('No token found in localStorage, relying on HTTP-only cookies');
+  }
+  
+  return headers;
 };
 
-// API request wrapper with error handling
+// API request wrapper with error handling and cross-origin support
 export const apiRequest = async (endpoint, options = {}) => {
   const url = getApiUrl(endpoint);
   const config = {
@@ -95,6 +121,17 @@ export const apiRequest = async (endpoint, options = {}) => {
     credentials: 'include', // Include cookies in all requests
     ...options
   };
+
+  // For cross-origin requests, also try with CORS headers
+  if (url.includes('10.42.0.33')) {
+    config.mode = 'cors';
+    config.headers = {
+      ...config.headers,
+      'Access-Control-Allow-Credentials': 'true'
+    };
+  }
+
+  console.log('API Request:', { url, method: config.method || 'GET', hasToken: !!localStorage.getItem('token') });
 
   try {
     // Create a timeout promise
@@ -108,9 +145,12 @@ export const apiRequest = async (endpoint, options = {}) => {
       timeoutPromise
     ]);
     
+    console.log('API Response:', { url, status: response.status, ok: response.ok });
+    
     // Handle non-2xx responses
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error('API Error:', { url, status: response.status, error: errorData });
       throw new Error(errorData.message || `HTTP Error: ${response.status}`);
     }
     
@@ -160,12 +200,111 @@ export const api = {
     
     getDashboard: () => 
       apiRequest(API_CONFIG.ENDPOINTS.STUDENT.DASHBOARD),
+    
+    // Dashboard specific endpoints - using exact backend route matches
+    getOverview: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.STUDENT.OVERVIEW),
+    
+    getEnrolledCourses: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.STUDENT.ENROLLED_COURSES),
+    
+    getPendingCourses: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.STUDENT.PENDING_COURSES),
+    
+    getAllCourses: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.STUDENT.ALL_COURSES),
+    
+    getAllLectures: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.STUDENT.ALL_LECTURES),
+    
+    getPrevLectures: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.STUDENT.PREV_LECTURES),
+    
+    getAllQuestions: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.STUDENT.ALL_QUESTIONS),
+    
+    getMyQuestions: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.STUDENT.MY_QUESTIONS),
+    
+    joinCourse: (course_id) => 
+      apiRequest(API_CONFIG.ENDPOINTS.STUDENT.JOIN_COURSE, {
+        method: 'POST',
+        body: JSON.stringify({ course_id })
+      }),
+    
+    joinLecture: (lectureId) => 
+      apiRequest(API_CONFIG.ENDPOINTS.STUDENT.JOIN_CLASS, {
+        method: 'POST',
+        body: JSON.stringify({ lectureId })
+      }),
+    
+    askQuestion: (question_text, lecture_id) => 
+      apiRequest(API_CONFIG.ENDPOINTS.STUDENT.ASK_QUESTION, {
+        method: 'POST',
+        body: JSON.stringify({ question_text, lecture_id })
+      }),
+    
+    answerQuestion: (question_id, answer_text, answer_type) => 
+      apiRequest(API_CONFIG.ENDPOINTS.STUDENT.ANSWER_QUESTION, {
+        method: 'POST',
+        body: JSON.stringify({ question_id, answer_text, answer_type })
+      }),
   },
   
   // Teacher methods
   teacher: {
     getDashboard: () => 
       apiRequest(API_CONFIG.ENDPOINTS.TEACHER.DASHBOARD),
+    
+    getOverview: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.OVERVIEW),
+    
+    getProfile: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.PROFILE),
+    
+    updateProfile: (profileData) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.PROFILE, {
+        method: 'PUT',
+        body: JSON.stringify(profileData)
+      }),
+    
+    createCourse: (courseData) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.CREATE_COURSE, {
+        method: 'POST',
+        body: JSON.stringify(courseData)
+      }),
+    
+    getYourCourses: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.YOUR_COURSES),
+    
+    getCourseDetails: (courseId) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.COURSE_DETAILS.replace(':courseId', courseId)),
+    
+    createClass: (classData) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.CREATE_CLASS, {
+        method: 'POST',
+        body: JSON.stringify(classData)
+      }),
+    
+    getClassPage: (classId) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.CLASS_PAGE.replace(':classId', classId)),
+    
+    getJoinedStudents: (classId) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.JOINED_STUDENTS.replace(':classId', classId)),
+    
+    getAllDoubts: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.ALL_DOUBTS),
+    
+    getUnansweredDoubts: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.UNANSWERED_DOUBTS),
+    
+    getAnsweredDoubts: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.ANSWERED_DOUBTS),
+    
+    endClass: (classId) => 
+      apiRequest(API_CONFIG.ENDPOINTS.TEACHER.END_CLASS.replace(':classId', classId), {
+        method: 'POST'
+      }),
   }
 };
 

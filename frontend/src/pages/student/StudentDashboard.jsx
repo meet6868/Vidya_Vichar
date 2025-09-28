@@ -1,65 +1,154 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { apiRequest } from '../../config/api.js';
-import '../Dashboard.css';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { api, apiRequest } from '../../config/api';
+
+// Import separate component files
+import StudentOverview from './StudentOverview.jsx';
+import EnrolledCourses from './EnrolledCourses.jsx';
+import AvailableCourses from './AvailableCourses.jsx';
+import StudentClasses from './StudentClasses.jsx';
+import AllDoubts from './AllDoubts.jsx';
+import AnsweredDoubts from './AnsweredDoubts.jsx';
+import AskDoubt from './AskDoubt.jsx';
+import JoinCourse from './JoinCourse.jsx';
 
 const StudentDashboard = () => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState('overview');
+  const [activeSubSection, setActiveSubSection] = useState('enrolled-courses'); // For My Courses subsection
+  const [availableCourses, setAvailableCourses] = useState([]);
+  const [loadingCourses, setLoadingCourses] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
+    console.log('=== STUDENT DASHBOARD AUTHENTICATION CHECK ===');
+    console.log('Current location:', location.pathname);
+    console.log('Component mounted at:', new Date().toISOString());
+    
     // Check if auth bypass is enabled
     const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
+    console.log('Bypass auth enabled:', bypassAuth);
     
     if (bypassAuth) {
+      console.log('Using auth bypass with mock data');
       // Mock user data for development
       setUserData({
+        id: 'STU001',
         name: 'John Doe',
-        universityId: 'STU001',
-        email: 'john.doe@university.edu',
-        role: 'student'
+        roll_no: '001',
+        batch: 'B.Tech',
+        branch: 'CSE',
+        username: 'john.doe@university.edu',
+        is_TA: false
       });
       setLoading(false);
-    } else {
-      // Check if user is logged in (cookie-based authentication)
-      // Token is stored in HTTP-only cookies, so we check userRole and userData
-      const userRole = localStorage.getItem('userRole');
-      const storedUserData = localStorage.getItem('userData');
+      return;
+    }
 
+    // Check localStorage contents
+    const userRole = localStorage.getItem('userRole');
+    const storedUserData = localStorage.getItem('userData');
+    
+    console.log('=== LOCALSTORAGE STATUS ===');
+    console.log('userRole:', userRole);
+    console.log('storedUserData exists:', !!storedUserData);
+    console.log('storedUserData length:', storedUserData ? storedUserData.length : 0);
+    console.log('Raw storedUserData:', storedUserData);
+    
+    // Check for cookie (if accessible)
+    console.log('Document cookies:', document.cookie);
+
+    // Add small delay to prevent race conditions during navigation
+    const timeoutId = setTimeout(() => {
+      console.log('=== AUTHENTICATION VALIDATION ===');
+      
+      // Check user role
+      if (!userRole) {
+        console.log('❌ No userRole found in localStorage');
+        navigate('/student/login', { replace: true });
+        return;
+      }
+      
       if (userRole !== 'student') {
-        navigate('/student/login');
+        console.log('❌ User role is not student:', userRole);
+        navigate('/student/login', { replace: true });
+        return;
+      }
+      
+      console.log('✅ User role is valid:', userRole);
+
+      // Check user data
+      if (!storedUserData || storedUserData === 'undefined' || storedUserData === 'null') {
+        console.log('❌ No valid user data found in localStorage');
+        navigate('/student/login', { replace: true });
         return;
       }
 
-      // Safely parse user data with error handling
-      if (storedUserData && storedUserData !== 'undefined') {
-        try {
-          setUserData(JSON.parse(storedUserData));
-        } catch (error) {
-          console.error('Error parsing stored user data:', error);
-          // Set fallback user data if JSON parsing fails
-          setUserData({
-            name: 'Student',
-            universityId: 'Unknown',
-            email: 'student@university.edu',
-            role: 'student'
+      // Parse user data
+      try {
+        const parsedUserData = JSON.parse(storedUserData);
+        console.log('✅ Successfully parsed user data:', parsedUserData);
+        
+        // Validate required fields
+        if (!parsedUserData.id || !parsedUserData.name) {
+          console.log('❌ User data missing required fields:', {
+            hasId: !!parsedUserData.id,
+            hasName: !!parsedUserData.name,
+            keys: Object.keys(parsedUserData)
           });
+          navigate('/student/login', { replace: true });
+          return;
         }
-      } else {
-        console.log('No valid user data found in localStorage');
-        // Set fallback user data
-        setUserData({
-          name: 'Student',
-          universityId: 'Unknown',
-          email: 'student@university.edu',
-          role: 'student'
-        });
+        
+        console.log('✅ User data validation passed');
+        console.log('✅ Setting user data and completing authentication');
+        setUserData(parsedUserData);
+        setLoading(false);
+        
+      } catch (error) {
+        console.error('❌ Error parsing stored user data:', error);
+        console.log('Problematic data:', storedUserData);
+        navigate('/student/login', { replace: true });
+        return;
       }
-      setLoading(false);
+    }, 200); // Increased delay to ensure stable navigation
+
+    return () => {
+      console.log('Cleaning up authentication timeout');
+      clearTimeout(timeoutId);
+    };
+  }, [navigate, location.pathname]);
+
+  // Fetch available courses when user data is available
+  useEffect(() => {
+    if (userData?.id) {
+      fetchAvailableCourses();
     }
-  }, [navigate]);
+  }, [userData]);
+
+  const fetchAvailableCourses = async () => {
+    if (!userData?.id) return;
+    
+    setLoadingCourses(true);
+    try {
+      // Backend automatically filters by student's branch and batch from authentication
+      const response = await api.student.getAllCourses();
+
+      if (response.success && response.data && response.data.courses) {
+        setAvailableCourses(response.data.courses);
+      } else {
+        console.error('Failed to fetch available courses:', response.message);
+        setAvailableCourses([]);
+      }
+    } catch (error) {
+      console.error('Error fetching available courses:', error);
+      setAvailableCourses([]);
+    } finally {
+      setLoadingCourses(false);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -72,254 +161,187 @@ const StudentDashboard = () => {
     }
     
     // Clear client-side data
+    localStorage.removeItem('token');
     localStorage.removeItem('userRole');
     localStorage.removeItem('userData');
     navigate('/');
   };
 
-  // Section rendering functions
-  const renderOverview = () => (
-    <div>
-      <h3>Student Overview</h3>
-      <p>Welcome to your dashboard, {userData?.name}!</p>
-      <div className="overview-stats">
-        <div className="stat-card">
-          <h4>Enrolled Courses</h4>
-          <p>3</p>
-        </div>
-        <div className="stat-card">
-          <h4>Completed Assignments</h4>
-          <p>12</p>
-        </div>
-        <div className="stat-card">
-          <h4>Pending Doubts</h4>
-          <p>2</p>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderEnrolledCourses = () => (
-    <div>
-      <h3>Enrolled Courses</h3>
-      <p>View all your enrolled courses</p>
-      <div className="course-list">
-        <div className="course-card">
-          <h4>Mathematics 101</h4>
-          <p>Progress: 75%</p>
-        </div>
-        <div className="course-card">
-          <h4>Physics 201</h4>
-          <p>Progress: 60%</p>
-        </div>
-        <div className="course-card">
-          <h4>Chemistry 301</h4>
-          <p>Progress: 90%</p>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderAvailableCourses = () => (
-    <div>
-      <h3>Available Courses</h3>
-      <p>Discover new courses to enroll in</p>
-      <div className="course-list">
-        <div className="course-card">
-          <h4>Advanced Calculus</h4>
-          <p>Instructor: Dr. Johnson | Duration: 12 weeks</p>
-          <button className="primary-btn">Enroll Now</button>
-        </div>
-        <div className="course-card">
-          <h4>Data Structures</h4>
-          <p>Instructor: Prof. Davis | Duration: 16 weeks</p>
-          <button className="primary-btn">Enroll Now</button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderClasses = () => (
-    <div>
-      <h3>My Classes</h3>
-      <p>View your upcoming and past classes</p>
-      <div className="class-list">
-        <div className="class-item">
-          <h4>Mathematics - Integration</h4>
-          <p>Today, 10:00 AM | Room: 101</p>
-        </div>
-        <div className="class-item">
-          <h4>Physics - Mechanics</h4>
-          <p>Tomorrow, 2:00 PM | Room: 205</p>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderAllDoubts = () => (
-    <div>
-      <h3>All Doubts</h3>
-      <p>View all your submitted questions</p>
-      <div className="doubt-list">
-        <div className="doubt-item">
-          <h4>Question about Integration by Parts</h4>
-          <p>Subject: Mathematics | Status: Pending</p>
-        </div>
-        <div className="doubt-item answered">
-          <h4>Physics Lab Equipment</h4>
-          <p>Subject: Physics | Status: Answered</p>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderAnsweredDoubts = () => (
-    <div>
-      <h3>Answered Doubts</h3>
-      <p>Your questions that have been answered</p>
-      <div className="doubt-list">
-        <div className="doubt-item answered">
-          <h4>Chemistry Equation Balancing</h4>
-          <p>Answered by: Dr. Smith | Yesterday</p>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderAskDoubt = () => (
-    <div>
-      <h3>Ask a Question</h3>
-      <p>Submit your doubts and get help from teachers</p>
-      <form className="create-form">
-        <select>
-          <option>Select Subject</option>
-          <option>Mathematics</option>
-          <option>Physics</option>
-          <option>Chemistry</option>
-        </select>
-        <input type="text" placeholder="Question Title" />
-        <textarea placeholder="Describe your doubt in detail"></textarea>
-        <button type="submit" className="primary-btn">Submit Question</button>
-      </form>
-    </div>
-  );
-
-  const renderJoinCourse = () => (
-    <div>
-      <h3>Join Course</h3>
-      <p>Enter course code to join a new course</p>
-      <form className="create-form">
-        <input type="text" placeholder="Course Code" />
-        <button type="submit" className="primary-btn">Join Course</button>
-      </form>
-    </div>
-  );
-
   const renderSection = () => {
     switch(activeSection) {
-      case 'overview': return renderOverview();
-      case 'enrolled-courses': return renderEnrolledCourses();
-      case 'available-courses': return renderAvailableCourses();
-      case 'classes': return renderClasses();
-      case 'all-doubts': return renderAllDoubts();
-      case 'answered-doubts': return renderAnsweredDoubts();
-      case 'ask-doubt': return renderAskDoubt();
-      case 'join-course': return renderJoinCourse();
-      default: return renderOverview();
+      case 'overview': return <StudentOverview userData={userData} />;
+      case 'my-courses': 
+        // Handle My Courses subsections
+        switch(activeSubSection) {
+          case 'enrolled-courses': return <EnrolledCourses userData={userData} />;
+          case 'join-course': return <JoinCourse userData={userData} availableCourses={availableCourses} loadingCourses={loadingCourses} refreshCourses={fetchAvailableCourses} />;
+          default: return <EnrolledCourses userData={userData} />;
+        }
+      case 'attended-courses': return <AvailableCourses userData={userData} />; // Reuse for attended courses
+      case 'join-class': return <StudentClasses userData={userData} />;
+      default: return <StudentOverview userData={userData} />;
     }
   };
 
   if (loading) {
     return (
-      <div className="dashboard-loading">
-        <div className="loading-spinner"></div>
-        <p>Loading dashboard...</p>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 text-white mb-4">
+            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          </div>
+          <p className="text-slate-600 font-medium">Loading your dashboard...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="dashboard">
-      <header className="dashboard-header">
-        <div className="header-content">
-          <div className="logo-section">
-            <Link to="/" className="dashboard-logo">Vidya Vichar</Link>
-            <span className="user-role">Student Dashboard</span>
+    <div className="relative min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex flex-col overflow-x-hidden">
+      {/* Global background accents */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-20">
+        <div className="absolute -top-24 -left-24 h-96 w-96 rounded-full bg-gradient-to-br from-indigo-200/60 to-transparent blur-3xl" />
+        <div className="absolute top-1/3 -right-28 h-[28rem] w-[28rem] rounded-full bg-gradient-to-tl from-purple-200/60 to-transparent blur-3xl" />
+      </div>
+      
+      {/* Header */}
+      <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200 w-full">
+        <div className="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          {/* Brand/logo */}
+          <div className="flex items-center gap-3">
+            <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 text-white grid place-items-center shadow-sm">
+                <span className="text-sm font-bold">VV</span>
+              </div>
+              <div className="leading-tight">
+                <div className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">Vidya Vichar</div>
+                <div className="hidden sm:block text-[13px] text-slate-500">Student Dashboard</div>
+              </div>
+            </Link>
           </div>
-          <div className="header-actions">
-            <span className="welcome-text">Welcome, {userData?.name || 'Student'}</span>
-            <button onClick={handleLogout} className="logout-btn">
+
+          {/* User actions */}
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:block text-right">
+              <div className="text-sm font-semibold text-slate-900">Welcome, {userData?.name || 'Student'}</div>
+              <div className="text-xs text-slate-500">{userData?.universityId || 'Student ID'}</div>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 transition-all duration-200 shadow-sm hover:shadow-md"
+            >
               Logout
             </button>
           </div>
         </div>
       </header>
 
-      <div className="dashboard-container">
-        <aside className="dashboard-sidebar">
-          <nav className="sidebar-nav">
-            <div 
-              onClick={() => setActiveSection('overview')} 
-              className={`nav-item ${activeSection === 'overview' ? 'active' : ''}`}
+      {/* Main content */}
+      <div className="flex-1 flex">
+        {/* Sidebar Navigation */}
+        <aside className="w-64 bg-white/50 backdrop-blur border-r border-slate-200 overflow-y-auto">
+          <nav className="p-4 space-y-2">
+            {/* Overview */}
+            <button
+              onClick={() => setActiveSection('overview')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                activeSection === 'overview'
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                  : 'text-slate-700 hover:bg-slate-100 hover:text-indigo-700'
+              }`}
             >
-              <span className="nav-icon">📊</span>
-              Overview
+              <span className="text-lg">📊</span>
+              <span className="font-medium">Overview</span>
+            </button>
+
+            {/* My Courses - Expandable */}
+            <div className="space-y-1">
+              <button
+                onClick={() => {
+                  if (activeSection === 'my-courses') {
+                    // If already in My Courses, toggle between subsections or collapse
+                    setActiveSection('overview');
+                  } else {
+                    setActiveSection('my-courses');
+                    setActiveSubSection('enrolled-courses');
+                  }
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                  activeSection === 'my-courses'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                    : 'text-slate-700 hover:bg-slate-100 hover:text-indigo-700'
+                }`}
+              >
+                <span className="text-lg">📚</span>
+                <span className="font-medium">My Courses</span>
+                <span className={`ml-auto text-sm transition-transform duration-200 ${
+                  activeSection === 'my-courses' ? 'rotate-90' : ''
+                }`}>▶</span>
+              </button>
+
+              {/* My Courses Subsections */}
+              {activeSection === 'my-courses' && (
+                <div className="ml-6 space-y-1">
+                  <button
+                    onClick={() => setActiveSubSection('enrolled-courses')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm transition-all duration-200 ${
+                      activeSubSection === 'enrolled-courses'
+                        ? 'bg-indigo-100 text-indigo-700'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
+                    }`}
+                  >
+                    <span className="text-sm">📖</span>
+                    <span className="font-medium">Enrolled Courses</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveSubSection('join-course')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm transition-all duration-200 ${
+                      activeSubSection === 'join-course'
+                        ? 'bg-indigo-100 text-indigo-700'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
+                    }`}
+                  >
+                    <span className="text-sm">➕</span>
+                    <span className="font-medium">Join New Course</span>
+                  </button>
+                </div>
+              )}
             </div>
-            <div 
-              onClick={() => setActiveSection('enrolled-courses')} 
-              className={`nav-item ${activeSection === 'enrolled-courses' ? 'active' : ''}`}
+
+            {/* Attended Courses */}
+            <button
+              onClick={() => setActiveSection('attended-courses')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                activeSection === 'attended-courses'
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                  : 'text-slate-700 hover:bg-slate-100 hover:text-indigo-700'
+              }`}
             >
-              <span className="nav-icon">📚</span>
-              Enrolled Courses
-            </div>
-            <div 
-              onClick={() => setActiveSection('available-courses')} 
-              className={`nav-item ${activeSection === 'available-courses' ? 'active' : ''}`}
+              <span className="text-lg">✅</span>
+              <span className="font-medium">Attended Courses</span>
+            </button>
+
+            {/* Join Class */}
+            <button
+              onClick={() => setActiveSection('join-class')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                activeSection === 'join-class'
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                  : 'text-slate-700 hover:bg-slate-100 hover:text-indigo-700'
+              }`}
             >
-              <span className="nav-icon">🔍</span>
-              Available Courses
-            </div>
-            <div 
-              onClick={() => setActiveSection('classes')} 
-              className={`nav-item ${activeSection === 'classes' ? 'active' : ''}`}
-            >
-              <span className="nav-icon">🏫</span>
-              My Classes
-            </div>
-            <div 
-              onClick={() => setActiveSection('all-doubts')} 
-              className={`nav-item ${activeSection === 'all-doubts' ? 'active' : ''}`}
-            >
-              <span className="nav-icon">❓</span>
-              All Doubts
-            </div>
-            <div 
-              onClick={() => setActiveSection('answered-doubts')} 
-              className={`nav-item ${activeSection === 'answered-doubts' ? 'active' : ''}`}
-            >
-              <span className="nav-icon">✅</span>
-              Answered Doubts
-            </div>
-            <div 
-              onClick={() => setActiveSection('ask-doubt')} 
-              className={`nav-item ${activeSection === 'ask-doubt' ? 'active' : ''}`}
-            >
-              <span className="nav-icon">💭</span>
-              Ask Doubt
-            </div>
-            <div 
-              onClick={() => setActiveSection('join-course')} 
-              className={`nav-item ${activeSection === 'join-course' ? 'active' : ''}`}
-            >
-              <span className="nav-icon">➕</span>
-              Join Course
-            </div>
+              <span className="text-lg">🏫</span>
+              <span className="font-medium">Join Class</span>
+            </button>
           </nav>
         </aside>
 
-        <main className="dashboard-main">
-          <div className="dashboard-section">
-            {renderSection()}
+        {/* Main content area */}
+        <main className="flex-1 p-6 overflow-y-auto">
+          <div className="max-w-6xl mx-auto">
+            <div className="bg-white/60 backdrop-blur rounded-2xl border border-slate-200 shadow-sm min-h-[calc(100vh-8rem)] p-8">
+              {renderSection()}
+            </div>
           </div>
         </main>
       </div>

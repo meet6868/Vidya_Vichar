@@ -43,20 +43,54 @@ const StudentLogin = () => {
       });
 
       if (data.success) {
-        // Token is automatically stored in cookies by the backend
+        console.log('=== LOGIN SUCCESS ===');
+        console.log('Login response:', data);
+        console.log('User data received:', data.user);
+        console.log('Token received:', data.token ? 'YES' : 'NO');
+        
+        // Store token in localStorage for API requests
+        if (data.token) {
+          console.log('✅ Storing token in localStorage for API requests');
+          localStorage.setItem('token', data.token);
+          
+          // Verify token was stored
+          const storedToken = localStorage.getItem('token');
+          console.log('✅ Token stored successfully:', storedToken ? 'YES' : 'NO');
+          console.log('Token preview:', storedToken ? storedToken.substring(0, 20) + '...' : 'NONE');
+        } else {
+          console.warn('❌ No token in login response - API calls may fail');
+        }
+        
         // Store user data and role for client-side use
         if (data.user) {
-          localStorage.setItem('userData', JSON.stringify(data.user));
+          const userDataString = JSON.stringify(data.user);
+          console.log('✅ Storing user data in localStorage:', userDataString);
+          localStorage.setItem('userData', userDataString);
+          
+          // Verify it was stored correctly
+          const storedData = localStorage.getItem('userData');
+          console.log('✅ User data verification:', storedData === userDataString ? 'SUCCESS' : 'FAILED');
+        } else {
+          console.warn('❌ No user data in login response');
         }
+        
+        console.log('✅ Setting userRole to student');
         localStorage.setItem('userRole', 'student');
         
-        // Show success message
-        console.log('Login successful:', data.message);
-        console.log('Token stored in cookies with expiration time');
+        // Show complete localStorage status
+        console.log('=== FINAL LOCALSTORAGE STATUS ===');
+        console.log('userRole:', localStorage.getItem('userRole'));
+        console.log('userData exists:', !!localStorage.getItem('userData'));
+        console.log('token exists:', !!localStorage.getItem('token'));
         
+        console.log('Login successful:', data.message);
+        console.log('Document cookies after login:', document.cookie);
+        
+        console.log('=== NAVIGATING TO DASHBOARD ===');
         // Redirect to student dashboard
-        navigate('/student/dashboard');
+        navigate('/student/dashboard', { replace: true });
       } else {
+        console.log('❌ Login failed:', data.message);
         setErrors([data.message || 'Login failed']);
       }
     } catch (error) {

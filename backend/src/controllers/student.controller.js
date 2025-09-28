@@ -217,7 +217,12 @@ const studentController = {
         data: {
           courses: courses.map(course => ({
             id: course.course_id,
-            name: course.course_name
+            name: course.course_name,
+            duration: course.duration,
+            remainingTime: course.remainingTime,
+            instructor: course.instructor,
+            TAs: course.TAs
+
           }))
         }
       });
