@@ -629,7 +629,12 @@ const studentController = {
   // Ask a doubt/question
   askQuestion: async (req, res) => {
     try {
-      const { question_text, lecture_id } = req.body;
+      const { 
+        question_text, 
+        lecture_id, 
+        referenced_resources, 
+        resource_context 
+      } = req.body;
       const studentId = req.user.id;
 
       // Generate a unique question_id (could use a UUID or a timestamp+studentId+lectureId)
@@ -646,27 +651,23 @@ const studentController = {
         is_important: false,
         upvotes: 1, // Auto upvote by asker
         upvoted_by: [studentId],
-        answer: []
+        answer: [],
+        referenced_resources: referenced_resources || [], // Array of resource IDs
+        resource_context: resource_context || null // Additional context about resource relation
       });
 
       await newQuestion.save();
+
+      // Populate the referenced resources for the response
+      const populatedQuestion = await Question.findOne({ question_id })
+        .populate('referenced_resources', 'resource_id title resource_type topic')
+        .lean();
 
       res.status(201).json({
         success: true,
         message: 'Question asked successfully',
         data: {
-          question: {
-            question_id: newQuestion.question_id,
-            question_text: newQuestion.question_text,
-            student_id: newQuestion.student_id,
-            lecture_id: newQuestion.lecture_id,
-            timestamp: newQuestion.timestamp,
-            is_answered: newQuestion.is_answered,
-            is_important: newQuestion.is_important,
-            upvotes: newQuestion.upvotes,
-            upvoted_by: newQuestion.upvoted_by,
-            answer: newQuestion.answer
-          }
+          question: populatedQuestion
         }
       });
     } catch (error) {
@@ -727,6 +728,148 @@ const studentController = {
       });
     }
      catch (error) {
+      res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: error.message
+      });
+    }
+  },
+
+  // Get lectures for a specific course
+  getCourseLectures: async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const studentId = req.user.id;
+      
+      // Debug logging
+      console.log('🔍 getCourseLectures DEBUG:');
+      console.log('Course ID:', courseId);
+      console.log('Student ID from JWT:', studentId);
+      console.log('Student ID type:', typeof studentId);
+      
+      if (!courseId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Course ID is required'
+        });
+      }
+
+      // Verify student is enrolled in this course (courseId is the MongoDB _id)
+      const course = await Course.findOne({ _id: courseId, student_list: studentId });
+      console.log('Course found:', !!course);
+      if (course) {
+        console.log('Course name:', course.course_name);
+        console.log('Student list:', course.student_list);
+      }
+      
+      if (!course) {
+        return res.status(403).json({
+          success: false,
+          message: 'You are not enrolled in this course'
+        });
+      }
+
+      // Get all lectures for this course using the course_id field
+      const lectures = await Lecture.find({ course_id: course.course_id })
+        .sort({ lec_num: 1 });
+
+      console.log('Lectures found:', lectures.length);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          lectures: lectures
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching course lectures:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: error.message
+      });
+    }
+  },
+
+  // Get doubts for a specific lecture
+  getLectureDoubts: async (req, res) => {
+    try {
+      const { lectureId } = req.params;
+      const studentId = req.user.id;
+      
+      if (!lectureId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Lecture ID is required'
+        });
+      }
+
+      // Verify lecture exists and student has access
+      const lecture = await Lecture.findOne({ lecture_id: lectureId });
+      if (!lecture) {
+        return res.status(404).json({
+          success: false,
+          message: 'Lecture not found'
+        });
+      }
+
+      // Check if student is enrolled in the course
+      const course = await Course.findOne({ course_id: lecture.course_id, student_list: studentId });
+      if (!course) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have access to this lecture'
+        });
+      }
+
+      // Get questions for this lecture
+      const questions = await Question.find({ lecture_id: lectureId })
+        .populate('referenced_resources', 'title resource_type')
+        .populate('answer')
+        .sort({ timestamp: -1 });
+
+      // Format questions with mock student names
+      const mockStudentNames = ['Alice Johnson', 'Bob Smith', 'Charlie Davis', 'Diana Wilson', 'Emma Brown', 'Frank Miller'];
+      
+      const formattedQuestions = questions.map((question, index) => {
+        const randomName = mockStudentNames[index % mockStudentNames.length];
+        const hasAnswer = question.answer && question.answer.length > 0;
+        
+        return {
+          _id: question._id,
+          question_id: question.question_id,
+          question: question.question_text,
+          student_id: question.student_id,
+          student_name: randomName,
+          lecture_id: question.lecture_id,
+          timestamp: question.timestamp,
+          is_answered: question.is_answered,
+          answer: hasAnswer ? question.answer[0].answer : null,
+          answered_by: hasAnswer ? 'teacher' : null,
+          answered_at: hasAnswer ? question.answer[0].answered_at || new Date() : null,
+          referenced_resources: question.referenced_resources || [],
+          resource_context: question.resource_context
+        };
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          questions: formattedQuestions,
+          lecture: {
+            lecture_id: lecture.lecture_id,
+            course_id: lecture.course_id,
+            lec_num: lecture.lec_num,
+            class_start: lecture.class_start,
+            class_end: lecture.class_end,
+            topic: lecture.topic
+          },
+          totalCount: formattedQuestions.length
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching lecture doubts:', error);
       res.status(500).json({
         success: false,
         message: 'Server error',

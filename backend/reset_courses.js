@@ -1,13 +1,15 @@
-const express = require('express');
-const Course = require('../models/Courses');
-const Student = require('../models/Students');
-const Teacher = require('../models/Teachers');
+const mongoose = require('mongoose');
+require('./src/config/db');
 
-const router = express.Router();
+const Course = require('./src/models/Courses');
+const Student = require('./src/models/Students');
+const Teacher = require('./src/models/Teachers');
 
-// Temporary endpoint to reset course data
-router.post('/reset-courses', async (req, res) => {
+async function resetCoursesData() {
   try {
+    // Wait for database connection
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
     console.log('🔄 Starting course data reset...');
     
     // 1. Delete all existing courses
@@ -91,32 +93,22 @@ router.post('/reset-courses', async (req, res) => {
     ];
     
     const createdCourses = await Course.insertMany(newCourses);
-    console.log(`✅ Created ${createdCourses.length} new courses`);
+    console.log(`✅ Created ${createdCourses.length} new courses:`);
     
-    res.status(200).json({
-      success: true,
-      message: 'Course data reset completed successfully',
-      data: {
-        deletedCourses: deletedCourses.deletedCount,
-        updatedStudents: studentsUpdate.modifiedCount,
-        createdCourses: createdCourses.length,
-        courses: createdCourses.map(c => ({
-          course_id: c.course_id,
-          course_name: c.course_name,
-          batch: c.batch,
-          branch: c.branch
-        }))
-      }
+    createdCourses.forEach(course => {
+      console.log(`   - ${course.course_id}: ${course.course_name} (${course.batch}, ${course.branch})`);
     });
+    
+    console.log('\n🎉 Course data reset completed successfully!');
+    console.log('✅ All students now have clean course arrays');
+    console.log('✅ All new courses are ready for enrollment');
+    console.log('✅ Data consistency issues resolved');
     
   } catch (error) {
     console.error('❌ Error during course reset:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error resetting course data',
-      error: error.message
-    });
+  } finally {
+    process.exit(0);
   }
-});
+}
 
-module.exports = router;
+resetCoursesData();

@@ -3,6 +3,7 @@ const router = express.Router();
 
 const studentController = require('../controllers/student.controller');
 const teacherController = require('../controllers/teacher.controller');
+const resourceController = require('../controllers/resource.controller');
 const { authenticate } = require('../controllers/auth.controller');
 
 
@@ -13,6 +14,8 @@ router.get('/student/dashboard/enrolled-courses', authenticate(['student']), stu
 router.get('/student/dashboard/pending-courses', authenticate(['student']), studentController.getPendingCourses);
 router.get('/student/dashboard/all-courses', authenticate(['student']), studentController.getCoursesForStudents);
 router.get('/student/dashboard/all-lectures', authenticate(['student']), studentController.getStudentLectures);
+router.get('/student/dashboard/course-lectures/:courseId', authenticate(['student']), studentController.getCourseLectures);
+router.get('/student/dashboard/lecture-doubts/:lectureId', authenticate(['student']), studentController.getLectureDoubts);
 router.get('/student/dashboard/prev-lectures', authenticate(['student']), studentController.getPrevStudentLectures);
 router.get('/student/dashboard/all-questions', authenticate(['student']), studentController.getAllQuestions);
 router.get('/student/dashboard/my-questions', authenticate(['student']), studentController.getMyQuestions);
@@ -38,6 +41,16 @@ router.get('/teacher/dashboard/doubts-tabs/all', authenticate(['teacher']), teac
 router.get('/teacher/dashboard/doubts-tabs/unanswered', authenticate(['teacher']), teacherController.getUnansweredDoubts);
 router.get('/teacher/dashboard/doubts-tabs/answered', authenticate(['teacher']), teacherController.getAnsweredDoubtsForTeacher);
 router.post('/teacher/dashboard/end-class/:classId', authenticate(['teacher']), teacherController.endClass);
+
+
+// Resource Management Routes (for both teachers and TAs)
+// Teacher and TA routes
+router.post('/resources/add', authenticate(['teacher', 'student']), resourceController.addResource);
+router.get('/resources/course/:courseId', authenticate(['teacher', 'student']), resourceController.getCourseResources);
+router.get('/resources/course/:courseId/lecture/:lectureId', authenticate(['teacher', 'student']), resourceController.getLectureResources);
+router.put('/resources/:resourceId', authenticate(['teacher', 'student']), resourceController.updateResource);
+router.delete('/resources/:resourceId', authenticate(['teacher', 'student']), resourceController.deleteResource);
+router.get('/resources/course/:courseId/search', authenticate(['teacher', 'student']), resourceController.searchResources);
 
 
 module.exports = router;

@@ -10,8 +10,11 @@ import AvailableCourses from './AvailableCourses.jsx';
 import StudentClasses from './StudentClasses.jsx';
 import AllDoubts from './AllDoubts.jsx';
 import AnsweredDoubts from './AnsweredDoubts.jsx';
-import AskDoubt from './AskDoubt.jsx';
+import AskDoubt from './Doubtpage.jsx';
 import JoinCourse from './JoinCourse.jsx';
+import AttendedCourses from './AttendedCourses.jsx';
+import CourseLectures from './CourseLectures.jsx';
+import LectureDoubts from './LectureDoubts.jsx';
 
 const StudentDashboard = () => {
   const [userData, setUserData] = useState(null);
@@ -20,6 +23,12 @@ const StudentDashboard = () => {
   const [activeSubSection, setActiveSubSection] = useState('enrolled-courses'); // For My Courses subsection
   const [availableCourses, setAvailableCourses] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(false);
+  
+  // Navigation state for attended courses flow
+  const [attendedCoursesView, setAttendedCoursesView] = useState('courses'); // 'courses', 'lectures', 'doubts'
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [selectedLecture, setSelectedLecture] = useState(null);
+  
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -171,6 +180,38 @@ const StudentDashboard = () => {
     navigate('/');
   };
 
+  // Navigation handlers for attended courses flow
+  const handleCourseSelect = (course) => {
+    setSelectedCourse(course);
+    setAttendedCoursesView('lectures');
+  };
+
+  const handleLectureSelect = (lecture) => {
+    setSelectedLecture(lecture);
+    setAttendedCoursesView('doubts');
+  };
+
+  const handleBackToAttendedCourses = () => {
+    setAttendedCoursesView('courses');
+    setSelectedCourse(null);
+    setSelectedLecture(null);
+  };
+
+  const handleBackToCourseLectures = () => {
+    setAttendedCoursesView('lectures');
+    setSelectedLecture(null);
+  };
+
+  // Reset attended courses navigation when switching sections
+  const handleSectionChange = (section) => {
+    setActiveSection(section);
+    if (section !== 'attended-courses') {
+      setAttendedCoursesView('courses');
+      setSelectedCourse(null);
+      setSelectedLecture(null);
+    }
+  };
+
   const renderSection = () => {
     switch(activeSection) {
       case 'overview': return <StudentOverview userData={userData} />;
@@ -182,7 +223,35 @@ const StudentDashboard = () => {
           case 'join-course': return <JoinCourse userData={userData} availableCourses={availableCourses} loadingCourses={loadingCourses} refreshCourses={fetchAvailableCourses} />;
           default: return <EnrolledCourses userData={userData} />;
         }
-      case 'attended-courses': return <AvailableCourses userData={userData} />; // Reuse for attended courses
+      case 'attended-courses':
+        // Handle Attended Courses navigation flow
+        switch(attendedCoursesView) {
+          case 'lectures':
+            return (
+              <CourseLectures 
+                userData={userData}
+                selectedCourse={selectedCourse}
+                onLectureSelect={handleLectureSelect}
+                onBack={handleBackToAttendedCourses}
+              />
+            );
+          case 'doubts':
+            return (
+              <LectureDoubts 
+                userData={userData}
+                selectedLecture={selectedLecture}
+                selectedCourse={selectedCourse}
+                onBack={handleBackToCourseLectures}
+              />
+            );
+          default:
+            return (
+              <AttendedCourses 
+                userData={userData}
+                onCourseSelect={handleCourseSelect}
+              />
+            );
+        }
       case 'join-class': return <StudentClasses userData={userData} />;
       default: return <StudentOverview userData={userData} />;
     }
@@ -248,7 +317,7 @@ const StudentDashboard = () => {
           <nav className="p-4 space-y-2">
             {/* Overview */}
             <button
-              onClick={() => setActiveSection('overview')}
+              onClick={() => handleSectionChange('overview')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
                 activeSection === 'overview'
                   ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
@@ -265,9 +334,9 @@ const StudentDashboard = () => {
                 onClick={() => {
                   if (activeSection === 'my-courses') {
                     // If already in My Courses, toggle between subsections or collapse
-                    setActiveSection('overview');
+                    handleSectionChange('overview');
                   } else {
-                    setActiveSection('my-courses');
+                    handleSectionChange('my-courses');
                     setActiveSubSection('enrolled-courses');
                   }
                 }}
@@ -326,7 +395,7 @@ const StudentDashboard = () => {
 
             {/* Attended Courses */}
             <button
-              onClick={() => setActiveSection('attended-courses')}
+              onClick={() => handleSectionChange('attended-courses')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
                 activeSection === 'attended-courses'
                   ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
@@ -339,7 +408,7 @@ const StudentDashboard = () => {
 
             {/* Join Class */}
             <button
-              onClick={() => setActiveSection('join-class')}
+              onClick={() => handleSectionChange('join-class')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
                 activeSection === 'join-class'
                   ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'

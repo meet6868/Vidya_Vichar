@@ -8,7 +8,6 @@ const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const resetRoutes = require('./routes/reset.routes'); // Temporary admin routes
-const resetRoutes = require('./routes/reset.routes');
 
 const app = express();
 

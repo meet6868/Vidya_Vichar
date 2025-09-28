@@ -246,6 +246,14 @@ export const api = {
     getMyQuestions: () => 
       apiRequest(API_CONFIG.ENDPOINTS.STUDENT.MY_QUESTIONS),
     
+    // Get lectures for a specific course
+    getCourseLectures: (courseId) => 
+      apiRequest(`/users/student/dashboard/course-lectures/${courseId}`),
+
+    // Get doubts for a specific lecture
+    getLectureDoubts: (lectureId) => 
+      apiRequest(`/users/student/dashboard/lecture-doubts/${lectureId}`),
+    
     joinCourse: (course_id) => 
       apiRequest(API_CONFIG.ENDPOINTS.STUDENT.JOIN_COURSE, {
         method: 'POST',
