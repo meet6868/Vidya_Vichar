@@ -23,8 +23,8 @@ const TeacherSchema = new mongoose.Schema({
     required: true
   },
   courses_id: [{
-    type: String,
-    unique: true
+    type: [String],
+		default: []
   }]
 });
 

@@ -18,23 +18,24 @@ const StudentSchema = new mongoose.Schema({
 	},
 	roll_no: {
 		type: String,
-		required: true
+		required: true,
+		unique: true
 	},
 	is_TA: {
 		type: Boolean,
 		default: false
 	},
-    courses_id_request: [{
-    	type: String,
-    	required: true
-    }],
-    courses_id_enrolled: [{
-    	type: String,
-    	required: true
-    }],
+    courses_id_request: {
+		type: [String],
+		default: []
+	},
+	courses_id_enrolled: {
+		type: [String],
+		default: []
+	},
 	batch: {
 		type: String,
-		enum: ['M.Tech', 'B.Tech', 'PHD', 'MS'],
+		enum: ['M.Tech', 'B.Tech', 'PhD', 'MS'],
 		required: true
 	},
 	branch: {

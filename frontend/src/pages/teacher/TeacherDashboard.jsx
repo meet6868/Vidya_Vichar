@@ -27,7 +27,6 @@ const TeacherDashboard = () => {
       // Token is stored in HTTP-only cookies, so we check userRole and userData
       const userRole = localStorage.getItem('userRole');
       const storedUserData = localStorage.getItem('userData');
-      console.log('User role:', userRole, 'User data:', storedUserData);
 
       if (userRole !== 'teacher') {
         navigate('/teacher/login');
