@@ -63,11 +63,11 @@ exports.registerTeacher = async (req, res) => {
     const { teacher_id, name, username, password } = req.body;
 
     if (!teacher_id || !name || !username || !password) {
-      return res.status(400).json({ message: 'All fields are required.' });
+      return res.status(400).json({success: false, message: 'All fields are required.' });
     }
     const existing = await Teacher.findOne({ username });
     if (existing) {
-      return res.status(400).json({ message: 'Teacher already exists.' });
+      return res.status(400).json({success: false, message: 'Teacher already exists.' });
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     const teacher = new Teacher({
@@ -124,15 +124,15 @@ exports.loginTeacher = async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
-      return res.status(400).json({ message: 'Username and password are required.' });
+      return res.status(400).json({success: false, message: 'Username and password are required.' });
     }
     const user = await Teacher.findOne({ username });
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials.' });
+      return res.status(401).json({success: false, message: 'Invalid credentials.' });
     }
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials.' });
+      return res.status(401).json({success: false, message: 'Invalid credentials.' });
     }
     const token = jwt.sign({ id: user._id, role: 'teacher' }, JWT_SECRET, { expiresIn: '1d' });
     res.cookie('token', token, {
@@ -144,6 +144,7 @@ exports.loginTeacher = async (req, res) => {
       success: true,
       message: 'Login successful',
       role: 'teacher',
+      token: token,
       user: { id: user._id, username: user.username, name: user.name, teacher_id: user.teacher_id }
     });
   } 
