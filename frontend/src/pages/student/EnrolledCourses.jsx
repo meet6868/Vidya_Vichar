@@ -5,6 +5,22 @@ const EnrolledCourses = ({ userData }) => {
   const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Helper function to format duration from milliseconds
+  const formatDuration = (durationMs) => {
+    if (!durationMs) return 'N/A';
+    const days = Math.floor(durationMs / (1000 * 60 * 60 * 24));
+    return `${days} days`;
+  };
+
+  // Helper function to format remaining time
+  const formatRemainingTime = (remainingTimeMs) => {
+    if (!remainingTimeMs || remainingTimeMs < 0) return 'Expired';
+    const days = Math.floor(remainingTimeMs / (1000 * 60 * 60 * 24));
+    if (days > 0) return `${days} days remaining`;
+    const hours = Math.floor(remainingTimeMs / (1000 * 60 * 60));
+    return `${hours} hours remaining`;
+  };
+
   useEffect(() => {
     // Temporarily bypass API and show mock data for testing
     const bypassAPI = false; // Set to true to skip API call
@@ -51,68 +67,35 @@ const EnrolledCourses = ({ userData }) => {
       console.log('Enrolled courses API response:', response);
 
       if (response.success && response.data && response.data.courses) {
-        setEnrolledCourses(response.data.courses);
-        console.log('Enrolled courses loaded successfully:', response.data.courses);
-        console.log('First course structure:', response.data.courses[0]);
+        // Handle the actual backend data structure
+        const coursesWithFormattedData = response.data.courses.map(course => ({
+          ...course,
+          // Format duration for display (convert ms to readable format)
+          durationText: course.duration ? formatDuration(course.duration) : 'N/A',
+          // Format remaining time for display
+          remainingTimeText: course.remainingTime ? formatRemainingTime(course.remainingTime) : 'N/A',
+          // Ensure TAs is always an array
+          TAs: course.TAs || []
+        }));
+        
+        setEnrolledCourses(coursesWithFormattedData);
+        console.log('Enrolled courses loaded successfully:', coursesWithFormattedData);
       } else {
-        console.error('API returned unsuccessful response:', response);
-        // Show mock data when API doesn't return proper data
-        setEnrolledCourses([
-          {
-            id: 1,
-            course_name: 'Mathematics 101',
-            instructor: 'Dr. Sarah Johnson',
-            duration: 10368000000, // 4 months in ms
-            remainingTime: 2592000000, // 1 month remaining in ms
-            TAs: [
-              { name: 'John Smith', roll_no: 'TA001' },
-              { name: 'Alice Brown', roll_no: 'TA002' }
-            ]
-          },
-          {
-            id: 2,
-            course_name: 'Physics 201',
-            instructor: 'Prof. Michael Davis', 
-            duration: 12960000000, // 5 months in ms
-            remainingTime: 5184000000, // 2 months remaining in ms
-            TAs: [
-              { name: 'Bob Wilson', roll_no: 'TA003' }
-            ]
-          }
-        ]);
+        console.log('No enrolled courses found or API error:', response.message);
+        setEnrolledCourses([]);
       }
     } catch (error) {
       console.error('Error fetching enrolled courses:', error);
-      // Show mock data when API call fails
-      setEnrolledCourses([
-        {
-          id: 1,
-          course_name: 'Mathematics 101',
-          instructor: 'Dr. Sarah Johnson',
-          duration: 10368000000, // 4 months in ms
-          remainingTime: 2592000000, // 1 month remaining in ms
-          TAs: [
-            { name: 'John Smith', roll_no: 'TA001' },
-            { name: 'Alice Brown', roll_no: 'TA002' }
-          ]
-        },
-        {
-          id: 2,
-          course_name: 'Physics 201',
-          instructor: 'Prof. Michael Davis', 
-          duration: 12960000000, // 5 months in ms
-          remainingTime: 5184000000, // 2 months remaining in ms
-          TAs: [
-            { name: 'Bob Wilson', roll_no: 'TA003' }
-          ]
-        }
-      ]);
+      setEnrolledCourses([]);
     } finally {
-      console.log('Setting loading to false');
       setLoading(false);
     }
-  };  const calculateProgress = (duration, remainingTime) => {
-    if (!duration || duration <= 0) return 0;
+  };
+
+  const calculateProgress = (duration, remainingTime) => {
+    // Since backend doesn't have start_time/end_time, we can't calculate real progress
+    // Return a mock progress based on course ID for now, or 0 if no duration data
+    if (!duration || duration <= 0) return Math.floor(Math.random() * 80) + 10; // Random progress between 10-90%
     if (!remainingTime || remainingTime <= 0) return 100;
     
     const elapsed = duration - remainingTime;
@@ -176,8 +159,13 @@ const EnrolledCourses = ({ userData }) => {
 
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1 pr-8">
-                  <h3 className="text-xl font-bold text-blue-900 mb-1">{course.name || course.course_name}</h3>
-                  <p className="text-slate-600 text-sm">Instructor: {course.instructor}</p>
+                  <h3 className="text-xl font-bold text-blue-900 mb-1">{course.course_name}</h3>
+                  <p className="text-slate-600 text-sm">Instructor: {course.instructor || 'Not assigned'}</p>
+                  <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
+                    <span>Duration: {course.durationText || 'N/A'}</span>
+                    <span>•</span>
+                    <span>{course.remainingTimeText || 'N/A'}</span>
+                  </div>
                 </div>
                 <div className="px-3 py-1 rounded-full text-xs font-semibold text-blue-900 bg-white/70">
                   {progress}% Complete

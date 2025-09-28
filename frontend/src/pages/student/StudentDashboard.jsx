@@ -5,6 +5,7 @@ import { api, apiRequest } from '../../config/api';
 // Import separate component files
 import StudentOverview from './StudentOverview.jsx';
 import EnrolledCourses from './EnrolledCourses.jsx';
+import PendingCourses from './PendingCourses.jsx';
 import AvailableCourses from './AvailableCourses.jsx';
 import StudentClasses from './StudentClasses.jsx';
 import AllDoubts from './AllDoubts.jsx';
@@ -23,9 +24,9 @@ const StudentDashboard = () => {
   const location = useLocation();
 
   useEffect(() => {
-    console.log('=== STUDENT DASHBOARD AUTHENTICATION CHECK ===');
+    console.log('=== STUDENT DASHBOARD LOADED ===');
     console.log('Current location:', location.pathname);
-    console.log('Component mounted at:', new Date().toISOString());
+    console.log('User:', userData?.name, '| Role:', localStorage.getItem('userRole'));
     
     // Check if auth bypass is enabled
     const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
@@ -50,11 +51,14 @@ const StudentDashboard = () => {
     // Check localStorage contents
     const userRole = localStorage.getItem('userRole');
     const storedUserData = localStorage.getItem('userData');
+    const token = localStorage.getItem('token');
     
     console.log('=== LOCALSTORAGE STATUS ===');
     console.log('userRole:', userRole);
     console.log('storedUserData exists:', !!storedUserData);
     console.log('storedUserData length:', storedUserData ? storedUserData.length : 0);
+    console.log('token exists:', !!token);
+    console.log('token preview:', token ? token.substring(0, 20) + '...' : 'None');
     console.log('Raw storedUserData:', storedUserData);
     
     // Check for cookie (if accessible)
@@ -174,6 +178,7 @@ const StudentDashboard = () => {
         // Handle My Courses subsections
         switch(activeSubSection) {
           case 'enrolled-courses': return <EnrolledCourses userData={userData} />;
+          case 'pending-courses': return <PendingCourses userData={userData} />;
           case 'join-course': return <JoinCourse userData={userData} availableCourses={availableCourses} loadingCourses={loadingCourses} refreshCourses={fetchAvailableCourses} />;
           default: return <EnrolledCourses userData={userData} />;
         }
@@ -292,6 +297,17 @@ const StudentDashboard = () => {
                   >
                     <span className="text-sm">📖</span>
                     <span className="font-medium">Enrolled Courses</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveSubSection('pending-courses')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-sm transition-all duration-200 ${
+                      activeSubSection === 'pending-courses'
+                        ? 'bg-indigo-100 text-indigo-700'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
+                    }`}
+                  >
+                    <span className="text-sm">⏳</span>
+                    <span className="font-medium">Pending Requests</span>
                   </button>
                   <button
                     onClick={() => setActiveSubSection('join-course')}

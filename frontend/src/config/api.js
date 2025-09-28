@@ -3,7 +3,7 @@ const API_CONFIG = {
   // Base URL for all API calls
   BASE_URL: process.env.NODE_ENV === 'production' 
     ? (import.meta.env.VITE_PRODUCTION_API_URL || 'https://your-production-domain.com/api')  // Production API URL from env
-    : (import.meta.env.VITE_API_BASE_URL || 'http://10.42.0.33:5000/api'),                    // Development API URL from env - FIXED TO BACKEND IP
+    : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'),                     // Development API URL - using localhost
   
   // API Endpoints
   ENDPOINTS: {
@@ -123,7 +123,7 @@ export const apiRequest = async (endpoint, options = {}) => {
   };
 
   // For cross-origin requests, also try with CORS headers
-  if (url.includes('10.42.0.33')) {
+  if (url.includes('localhost:5000')) {
     config.mode = 'cors';
     config.headers = {
       ...config.headers,
@@ -151,7 +151,20 @@ export const apiRequest = async (endpoint, options = {}) => {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('API Error:', { url, status: response.status, error: errorData });
-      throw new Error(errorData.message || `HTTP Error: ${response.status}`);
+      
+      // Provide more specific error messages for common issues
+      if (response.status === 401) {
+        const message = errorData.message || 'Authentication failed';
+        throw new Error(message);
+      } else if (response.status === 403) {
+        throw new Error('Access forbidden - insufficient permissions');
+      } else if (response.status === 404) {
+        throw new Error('Requested resource not found');
+      } else if (response.status >= 500) {
+        throw new Error('Server error - please try again later');
+      } else {
+        throw new Error(errorData.message || `HTTP Error: ${response.status}`);
+      }
     }
     
     return await response.json();
@@ -165,6 +178,13 @@ export const apiRequest = async (endpoint, options = {}) => {
 export const api = {
   // Auth methods
   auth: {
+    // Registration options
+    getBatchOptions: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.STUDENT.BATCH_OPTIONS),
+    
+    getBranchOptions: () => 
+      apiRequest(API_CONFIG.ENDPOINTS.STUDENT.BRANCH_OPTIONS),
+    
     studentLogin: (credentials) => 
       apiRequest(API_CONFIG.ENDPOINTS.AUTH.STUDENT_LOGIN, {
         method: 'POST',

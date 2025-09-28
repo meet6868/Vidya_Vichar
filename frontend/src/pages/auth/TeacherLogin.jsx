@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../../config/api.js';
 
 const TeacherLogin = () => {
@@ -8,8 +8,25 @@ const TeacherLogin = () => {
     password: ''
   });
   const [errors, setErrors] = useState([]);
+  const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Check for registration success message
+  useEffect(() => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+      if (location.state?.username) {
+        setFormData(prev => ({
+          ...prev,
+          username: location.state.username
+        }));
+      }
+      // Clear the state to prevent showing the message on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -34,32 +51,79 @@ const TeacherLogin = () => {
     
     if (!validateForm()) return;
     
+    // Clear any previous messages
+    setSuccessMessage('');
+    setErrors([]);
     setIsLoading(true);
     
     try {
+      console.log('=== TEACHER LOGIN ATTEMPT ===');
+      console.log('Login credentials:', { username: formData.username, hasPassword: !!formData.password });
+      
       const data = await api.auth.teacherLogin({
         username: formData.username, // Send as username to match backend
         password: formData.password
       });
 
+      console.log('=== TEACHER LOGIN RESPONSE ===');
+      console.log('Success:', data.success);
+      console.log('Message:', data.message);
+      console.log('Token received:', !!data.token);
+      console.log('User data:', data.user);
+
       if (data.success) {
-        // Token is automatically stored in cookies by the backend
-        // Store user data and role for client-side use
-  
-        localStorage.setItem('userData', JSON.stringify(data.user));
+        console.log('=== TEACHER LOGIN SUCCESS ===');
+        console.log('Login response:', data);
+        console.log('User data received:', data.user);
+        console.log('Token received:', data.token ? 'YES' : 'NO');
         
+        // Store token in localStorage for API requests (same as student login)
+        if (data.token) {
+          console.log('✅ Storing token in localStorage for API requests');
+          localStorage.setItem('token', data.token);
+          
+          // Verify token was stored
+          const storedToken = localStorage.getItem('token');
+          console.log('✅ Token stored successfully:', storedToken ? 'YES' : 'NO');
+          console.log('Token preview:', storedToken ? storedToken.substring(0, 20) + '...' : 'NONE');
+        } else {
+          console.warn('❌ No token in login response - API calls may fail');
+        }
+        
+        // Store user data and role for client-side use
+        if (data.user) {
+          const userDataString = JSON.stringify(data.user);
+          console.log('✅ Storing user data in localStorage:', userDataString);
+          localStorage.setItem('userData', userDataString);
+          
+          // Verify it was stored correctly
+          const storedData = localStorage.getItem('userData');
+          console.log('✅ User data verification:', storedData === userDataString ? 'SUCCESS' : 'FAILED');
+        } else {
+          console.warn('❌ No user data in login response');
+        }
+        
+        console.log('✅ Setting userRole to teacher');
         localStorage.setItem('userRole', 'teacher');
         
-        // Show success message
-        console.log('Login successful:', data.message);
-        console.log('Token stored in cookies with expiration time');
+        // Show complete localStorage status
+        console.log('=== FINAL LOCALSTORAGE STATUS ===');
+        console.log('userRole:', localStorage.getItem('userRole'));
+        console.log('userData exists:', !!localStorage.getItem('userData'));
+        console.log('token exists:', !!localStorage.getItem('token'));
         
+        console.log('Login successful:', data.message);
+        console.log('Document cookies after login:', document.cookie);
+        
+        console.log('=== NAVIGATING TO TEACHER DASHBOARD ===');
         // Redirect to teacher dashboard
-        navigate('/teacher/dashboard');
+        navigate('/teacher/dashboard', { replace: true });
       } else {
+        console.log('❌ Teacher login failed:', data.message);
         setErrors([data.message || 'Login failed']);
       }
     } catch (error) {
+      console.error('❌ Teacher login error:', error);
       setErrors([error.message || 'Network error. Please try again.']);
     } finally {
       setIsLoading(false);
@@ -115,6 +179,13 @@ const TeacherLogin = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="relative space-y-6">
+            {/* Success Message */}
+            {successMessage && (
+              <div className="bg-green-50/80 backdrop-blur border border-green-200 rounded-xl p-4 shadow-sm">
+                <p className="text-green-600 text-sm font-medium">{successMessage}</p>
+              </div>
+            )}
+
             {/* Error Messages */}
             {errors.length > 0 && (
               <div className="bg-red-50/80 backdrop-blur border border-red-200 rounded-xl p-4 shadow-sm">

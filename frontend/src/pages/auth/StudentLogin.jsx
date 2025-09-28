@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../../config/api.js';
 
 const StudentLogin = () => {
@@ -8,8 +8,25 @@ const StudentLogin = () => {
     password: ''
   });
   const [errors, setErrors] = useState([]);
+  const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Check for registration success message
+  useEffect(() => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+      if (location.state?.username) {
+        setFormData(prev => ({
+          ...prev,
+          username: location.state.username
+        }));
+      }
+      // Clear the state to prevent showing the message on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -34,13 +51,25 @@ const StudentLogin = () => {
     
     if (!validateForm()) return;
     
+    // Clear any previous messages
+    setSuccessMessage('');
+    setErrors([]);
     setIsLoading(true);
     
     try {
+      console.log('=== STUDENT LOGIN ATTEMPT ===');
+      console.log('Login credentials:', { username: formData.username, hasPassword: !!formData.password });
+      
       const data = await api.auth.studentLogin({
         username: formData.username, // Send as username to match backend
         password: formData.password
       });
+
+      console.log('=== LOGIN RESPONSE ===');
+      console.log('Success:', data.success);
+      console.log('Message:', data.message);
+      console.log('Token received:', !!data.token);
+      console.log('User data:', data.user);
 
       if (data.success) {
         console.log('=== LOGIN SUCCESS ===');
@@ -94,6 +123,7 @@ const StudentLogin = () => {
         setErrors([data.message || 'Login failed']);
       }
     } catch (error) {
+      console.error('❌ Login error:', error);
       setErrors([error.message || 'Network error. Please try again.']);
     } finally {
       setIsLoading(false);
@@ -149,6 +179,13 @@ const StudentLogin = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="relative space-y-6">
+            {/* Success Message */}
+            {successMessage && (
+              <div className="bg-green-50/80 backdrop-blur border border-green-200 rounded-xl p-4 shadow-sm">
+                <p className="text-green-600 text-sm font-medium">{successMessage}</p>
+              </div>
+            )}
+
             {/* Error Messages */}
             {errors.length > 0 && (
               <div className="bg-red-50/80 backdrop-blur border border-red-200 rounded-xl p-4 shadow-sm">

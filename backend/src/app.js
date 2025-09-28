@@ -7,6 +7,8 @@ const connectDB = require('./config/db');
 // Import routes
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
+const resetRoutes = require('./routes/reset.routes'); // Temporary admin routes
+const resetRoutes = require('./routes/reset.routes');
 
 const app = express();
 
@@ -39,6 +41,7 @@ app.get('/', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/admin', resetRoutes); // Temporary admin routes
 
 // 404 handler
 app.use('*', (req, res) => {

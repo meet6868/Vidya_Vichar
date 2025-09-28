@@ -21,10 +21,8 @@ const studentController = {
         });
       }
 
-      // Number of courses enrolled
-      const numCoursesEnrolled = Array.isArray(student.courses_id_enrolled)
-        ? student.courses_id_enrolled.length
-        : (student.courses_id_enrolled ? 1 : 0);
+      // Number of courses enrolled - count from Course collection where student is in student_list
+      const numCoursesEnrolled = await Course.countDocuments({ student_list: studentId });
 
       // Unanswered questions
       const unansweredQuestions = await Question.countDocuments({
@@ -32,10 +30,21 @@ const studentController = {
         is_answered: false
       });
 
-      // Pending course requests
-      const pendingCourses = Array.isArray(student.courses_id_request)
-        ? student.courses_id_request.length
-        : (student.courses_id_request ? 1 : 0);
+      // Pending course requests - use exactly the same logic as getPendingCourses
+      let pendingCourses = 0;
+      try {
+        const coursesWithPendingRequests = await Course.find({ request_list: studentId }).lean();
+        // Apply the exact same filtering as getPendingCourses
+        pendingCourses = coursesWithPendingRequests.filter(course => {
+          // Skip courses with missing essential data (same logic as getPendingCourses)
+          if (!course || !course._id) return false;
+          // Only count courses with valid essential fields (same logic as getPendingCourses)
+          return course.course_id || course.course_name;
+        }).length;
+      } catch (error) {
+        console.error('Error counting pending courses:', error);
+        pendingCourses = 0;
+      }
 
       res.status(200).json({
         success: true,
@@ -73,26 +82,28 @@ const studentController = {
 
       // Find all courses where student is in student_list
       const courses = await Course.find({ student_list: studentId })
-        .populate('teacher_id', 'name')
         .lean();
 
       // For each course, calculate duration, remaining time, instructor, and TAs
       const now = new Date();
       const courseDetails = await Promise.all(courses.map(async course => {
-        // Duration (in ms)
+        // Duration (in ms) - using valid_time as end time for now
         let duration = null;
         let remainingTime = null;
-        if (course.start_time && course.end_time) {
-          duration = new Date(course.end_time) - new Date(course.start_time);
-          remainingTime = new Date(course.end_time) - now;
+        if (course.valid_time) {
+          remainingTime = new Date(course.valid_time) - now;
+          // Assume course duration is 3 months (for display purposes)
+          duration = 90 * 24 * 60 * 60 * 1000; // 90 days in ms
         }
 
-        // Instructor name (assuming teacher_id is populated and can be array or single)
-        let instructorName = '';
+        // Get instructor name from Teacher collection
+        let instructorName = 'Unknown';
         if (Array.isArray(course.teacher_id) && course.teacher_id.length > 0) {
-          instructorName = course.teacher_id[0].name;
-        } else if (course.teacher_id && course.teacher_id.name) {
-          instructorName = course.teacher_id.name;
+          const Teacher = require('../models/Teachers');
+          const teacher = await Teacher.findById(course.teacher_id[0]);
+          if (teacher) {
+            instructorName = teacher.name;
+          }
         }
 
         // Get TAs (students in student_list with is_TA true)
@@ -139,42 +150,79 @@ const studentController = {
 
       // Find all courses where student id is present in request_list
       const courses = await Course.find({ request_list: studentId })
-        .populate('teacher_id', 'name')
         .lean();
 
       const now = new Date();
-      const courseDetails = await Promise.all(courses.map(async course => {
-        // Duration (in ms)
-        let duration = null;
-        let remainingTime = null;
-        if (course.start_time && course.end_time) {
-          duration = new Date(course.end_time) - new Date(course.start_time);
-          remainingTime = new Date(course.end_time) - now;
-        }
+      const courseDetails = [];
 
-        // Instructor name (assuming teacher_id is populated and can be array or single)
-        let instructorName = '';
-        if (Array.isArray(course.teacher_id) && course.teacher_id.length > 0) {
-          instructorName = course.teacher_id[0].name;
-        } else if (course.teacher_id && course.teacher_id.name) {
-          instructorName = course.teacher_id.name;
-        }
+      // Process each course individually with error handling
+      for (const course of courses) {
+        try {
+          // Skip courses with missing essential data
+          if (!course || !course._id) {
+            console.warn('Skipping invalid course:', course);
+            continue;
+          }
 
-        // Get TAs (students in student_list with is_TA true)
-        let TAs = [];
-        if (Array.isArray(course.student_list) && course.student_list.length > 0) {
-          TAs = await Student.find({ _id: { $in: course.student_list }, is_TA: true }, 'name roll_no');
-        }
+          // Duration (in ms) - using valid_time as end time for now
+          let duration = null;
+          let remainingTime = null;
+          if (course.valid_time) {
+            remainingTime = new Date(course.valid_time) - now;
+            duration = 90 * 24 * 60 * 60 * 1000; // 90 days in ms
+          }
 
-        return {
-          id: course._id,
-          course_name: course.course_name,
-          duration, // in ms
-          remainingTime, // in ms
-          instructor: instructorName,
-          TAs: TAs.map(ta => ({ name: ta.name, roll_no: ta.roll_no }))
-        };
-      }));
+          // Get instructor name from Teacher collection with better error handling
+          let instructorName = 'Unknown';
+          if (Array.isArray(course.teacher_id) && course.teacher_id.length > 0) {
+            try {
+              const Teacher = require('../models/Teachers');
+              const teacher = await Teacher.findById(course.teacher_id[0]);
+              if (teacher && teacher.name) {
+                instructorName = teacher.name;
+              }
+            } catch (teacherError) {
+              // Silently handle teacher lookup errors
+              instructorName = 'Unknown';
+            }
+          }
+
+          // Get TAs with better error handling
+          let TAs = [];
+          if (Array.isArray(course.student_list) && course.student_list.length > 0) {
+            try {
+              TAs = await Student.find({ 
+                _id: { $in: course.student_list }, 
+                is_TA: true 
+              }, 'name roll_no');
+            } catch (taError) {
+              // Silently handle TA lookup errors
+              TAs = [];
+            }
+          }
+
+          // Only add courses with valid essential fields
+          if (course.course_id || course.course_name) {
+            const courseDetail = {
+              id: course._id,
+              course_id: course.course_id || `Course_${course._id}`,
+              course_name: course.course_name || 'Unnamed Course',
+              batch: course.batch || 'Unknown',
+              branch: course.branch || 'Unknown',
+              duration,
+              remainingTime,
+              instructor: instructorName,
+              TAs: TAs.map(ta => ({ name: ta.name || 'Unknown', roll_no: ta.roll_no || 'N/A' }))
+            };
+            
+            courseDetails.push(courseDetail);
+          }
+        } catch (courseError) {
+          console.error(`Error processing course ${course?.course_id || 'unknown'}:`, courseError.message);
+          // Skip this course instead of adding fallback data
+          continue;
+        }
+      }
 
       res.status(200).json({
         success: true,
@@ -184,6 +232,7 @@ const studentController = {
       });
     } 
     catch (error) {
+      console.error('Error in getPendingCourses:', error);
       res.status(500).json({
         success: false,
         message: 'Server error',
@@ -204,23 +253,51 @@ const studentController = {
         });
       }
 
+      // Get courses for student's batch and branch
       const courses = await Course.find({
         batch: student.batch,
         branch: student.branch
-      }, 'course_id course_name');
+      }).lean();
+
+      // Format course data for frontend
+      const now = new Date();
+      const courseDetails = await Promise.all(courses.map(async course => {
+        // Calculate remaining time using valid_time
+        let remainingTime = null;
+        let duration = null;
+        if (course.valid_time) {
+          remainingTime = new Date(course.valid_time) - now;
+          duration = 90 * 24 * 60 * 60 * 1000; // Assume 90 days duration
+        }
+
+        // Get instructor name from Teacher collection
+        let instructorName = 'Unknown';
+        if (Array.isArray(course.teacher_id) && course.teacher_id.length > 0) {
+          const Teacher = require('../models/Teachers');
+          const teacher = await Teacher.findById(course.teacher_id[0]);
+          if (teacher) {
+            instructorName = teacher.name;
+          }
+        }
+
+        return {
+          id: course.course_id,
+          course_id: course.course_id, // Include both for compatibility
+          name: course.course_name,
+          course_name: course.course_name, // Include both for compatibility
+          duration: duration,
+          remainingTime: remainingTime,
+          instructor: instructorName,
+          batch: course.batch,
+          branch: course.branch,
+          TAs: [] // Empty for now since we'd need to check enrolled students
+        };
+      }));
 
       res.status(200).json({
         success: true,
         data: {
-          courses: courses.map(course => ({
-            id: course.course_id,
-            name: course.course_name,
-            duration: course.duration,
-            remainingTime: course.remainingTime,
-            instructor: course.instructor,
-            TAs: course.TAs
-
-          }))
+          courses: courseDetails
         }
       });
     } 
@@ -429,6 +506,13 @@ const studentController = {
       const student = await Student.findById(studentId);
       const course = await Course.findOne({ course_id });
 
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message: 'Student not found'
+        });
+      }
+
       if (!course) {
         return res.status(404).json({
           success: false,
@@ -436,31 +520,49 @@ const studentController = {
         });
       }
 
-      // Check if already enrolled (students.js: courses_id_enrolled)
-      if (student.courses_id_enrolled.includes(course_id)) {
+      // Check if already enrolled in course (student is in course's student_list)
+      if (course.student_list && course.student_list.includes(studentId)) {
         return res.status(400).json({
           success: false,
           message: 'Already enrolled in this course'
         });
       }
 
-      // Check if already requested (students.js: courses_id_request)
-      if (student.courses_id_request.includes(course_id)) {
+      // Check if already requested (student is in course's request_list)
+      if (course.request_list && course.request_list.includes(studentId)) {
         return res.status(400).json({
           success: false,
           message: 'Already requested to join this course'
         });
       }
 
-      // Add course to student's request list
-      student.courses_id_request.push(course_id);
-      await student.save();
+      // ENSURE BOTH-SIDE CONSISTENCY: Update both student and course documents
+      
+      // 1. Add course_id to student's request list (if not already there)
+      if (!student.courses_id_request) {
+        student.courses_id_request = [];
+      }
+      if (!student.courses_id_request.includes(course_id)) {
+        student.courses_id_request.push(course_id);
+      }
 
-      // Add student to course's request_list (courses.js: request_list)
+      // 2. Add student ObjectId to course's request_list (if not already there)  
+      if (!course.request_list) {
+        course.request_list = [];
+      }
       if (!course.request_list.includes(studentId)) {
         course.request_list.push(studentId);
-        await course.save();
       }
+
+      // Save both documents to ensure consistency
+      await Promise.all([
+        student.save(),
+        course.save()
+      ]);
+
+      console.log(`✅ Course join request created: Student ${student.name} requested ${course_id}`);
+      console.log(`   - Added ${course_id} to student.courses_id_request`);
+      console.log(`   - Added ${studentId} to course.request_list`);
 
       res.status(200).json({
         success: true,
@@ -475,6 +577,7 @@ const studentController = {
         }
       });
     } catch (error) {
+      console.error('Error in joinCourse:', error);
       res.status(500).json({
         success: false,
         message: 'Server error',
