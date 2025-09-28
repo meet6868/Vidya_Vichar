@@ -22,8 +22,8 @@ const StudentSchema = new mongoose.Schema({
 		unique: true
 	},
 	is_TA: {
-		type: Boolean,
-		default: false
+		type: String,
+		
 	},
     courses_id_request: {
 		type: [String],

@@ -8,13 +8,13 @@ import EnrolledCourses from './EnrolledCourses.jsx';
 import PendingCourses from './PendingCourses.jsx';
 import AvailableCourses from './AvailableCourses.jsx';
 import StudentClasses from './StudentClasses.jsx';
-import AllDoubts from './AllDoubts.jsx';
 import AnsweredDoubts from './AnsweredDoubts.jsx';
-import AskDoubt from './Doubtpage.jsx';
 import JoinCourse from './JoinCourse.jsx';
 import AttendedCourses from './AttendedCourses.jsx';
 import CourseLectures from './CourseLectures.jsx';
 import LectureDoubts from './LectureDoubts.jsx';
+import JoinClass from './JoinClass.jsx';
+import ClassDoubts from './ClassDoubts.jsx';
 
 const StudentDashboard = () => {
   const [userData, setUserData] = useState(null);
@@ -28,6 +28,10 @@ const StudentDashboard = () => {
   const [attendedCoursesView, setAttendedCoursesView] = useState('courses'); // 'courses', 'lectures', 'doubts'
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedLecture, setSelectedLecture] = useState(null);
+  
+  // Navigation state for join class flow
+  const [joinClassView, setJoinClassView] = useState('classes'); // 'classes', 'doubts'
+  const [selectedClassLecture, setSelectedClassLecture] = useState(null);
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -202,13 +206,28 @@ const StudentDashboard = () => {
     setSelectedLecture(null);
   };
 
-  // Reset attended courses navigation when switching sections
+  // Navigation handlers for join class flow
+  const handleClassJoined = (lecture) => {
+    setSelectedClassLecture(lecture);
+    setJoinClassView('doubts');
+  };
+
+  const handleBackToJoinClass = () => {
+    setJoinClassView('classes');
+    setSelectedClassLecture(null);
+  };
+
+  // Reset navigation when switching sections
   const handleSectionChange = (section) => {
     setActiveSection(section);
     if (section !== 'attended-courses') {
       setAttendedCoursesView('courses');
       setSelectedCourse(null);
       setSelectedLecture(null);
+    }
+    if (section !== 'join-class') {
+      setJoinClassView('classes');
+      setSelectedClassLecture(null);
     }
   };
 
@@ -252,7 +271,25 @@ const StudentDashboard = () => {
               />
             );
         }
-      case 'join-class': return <StudentClasses userData={userData} />;
+      case 'join-class':
+        // Handle Join Class navigation flow
+        switch(joinClassView) {
+          case 'doubts':
+            return (
+              <ClassDoubts 
+                userData={userData}
+                selectedLecture={selectedClassLecture}
+                onBack={handleBackToJoinClass}
+              />
+            );
+          default:
+            return (
+              <JoinClass 
+                userData={userData}
+                onClassJoined={handleClassJoined}
+              />
+            );
+        }
       default: return <StudentOverview userData={userData} />;
     }
   };

@@ -7,6 +7,11 @@ const LectureSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  lecture_title:{
+    type: String,
+    required: true
+
+  },
   course_id: {
     type: String,
     required: true
@@ -23,10 +28,7 @@ const LectureSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
-  topic: {
-    type: String,
-    default: null
-  },
+
   query_id: [{
     type: String
   }],

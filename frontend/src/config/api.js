@@ -254,6 +254,22 @@ export const api = {
     getLectureDoubts: (lectureId) => 
       apiRequest(`/users/student/dashboard/lecture-doubts/${lectureId}`),
     
+    // Join class / lecture functions
+    getAvailableClasses: () => 
+      apiRequest('/users/student/dashboard/available-classes'),
+
+    joinClass: (lectureId) => 
+      apiRequest('/users/student/dashboard/join-class', {
+        method: 'POST',
+        body: JSON.stringify({ lectureId })
+      }),
+
+    getLectureQuestions: (lectureId) => 
+      apiRequest(`/users/student/dashboard/lecture-questions/${lectureId}`),
+
+    getCourseInfo: (courseId) => 
+      apiRequest(`/users/student/dashboard/course-info/${courseId}`),
+    
     joinCourse: (course_id) => 
       apiRequest(API_CONFIG.ENDPOINTS.STUDENT.JOIN_COURSE, {
         method: 'POST',

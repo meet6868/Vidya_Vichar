@@ -2,38 +2,7 @@ import React from 'react';
 
 const AvailableCourses = ({ userData }) => {
   // Mock data for attended/completed courses
-  const attendedCourses = [
-    {
-      id: 1,
-      name: 'Introduction to Computer Science',
-      instructor: 'Prof. Alan Smith',
-      completedDate: '2024-12-15',
-      grade: 'A',
-      totalClasses: 24,
-      attendedClasses: 22,
-      color: 'emerald'
-    },
-    {
-      id: 2,
-      name: 'Calculus I',
-      instructor: 'Dr. Maria Rodriguez',
-      completedDate: '2024-11-30',
-      grade: 'A-',
-      totalClasses: 20,
-      attendedClasses: 19,
-      color: 'blue'
-    },
-    {
-      id: 3,
-      name: 'English Literature',
-      instructor: 'Prof. James Wilson',
-      completedDate: '2024-10-20',
-      grade: 'B+',
-      totalClasses: 16,
-      attendedClasses: 14,
-      color: 'purple'
-    }
-  ];
+
 
   const getColorClasses = (color) => {
     const colorMap = {

@@ -100,16 +100,19 @@ const studentController = {
         let instructorName = 'Unknown';
         if (Array.isArray(course.teacher_id) && course.teacher_id.length > 0) {
           const Teacher = require('../models/Teachers');
-          const teacher = await Teacher.findById(course.teacher_id[0]);
+          const teacher = await Teacher.findOne({ teacher_id: course.teacher_id[0] });
           if (teacher) {
             instructorName = teacher.name;
           }
         }
 
-        // Get TAs (students in student_list with is_TA true)
+        // Get TAs (from course.TA field - TAs assigned by teacher during course creation)
         let TAs = [];
-        if (Array.isArray(course.student_list) && course.student_list.length > 0) {
-          TAs = await Student.find({ _id: { $in: course.student_list }, is_TA: true }, 'name roll_no');
+        if (Array.isArray(course.TA) && course.TA.length > 0) {
+          // course.TA contains student IDs, find the actual student documents
+          TAs = await Student.find({ 
+            student_id: { $in: course.TA }
+          }, 'name roll_no student_id');
         }
 
         return {
@@ -177,7 +180,7 @@ const studentController = {
           if (Array.isArray(course.teacher_id) && course.teacher_id.length > 0) {
             try {
               const Teacher = require('../models/Teachers');
-              const teacher = await Teacher.findById(course.teacher_id[0]);
+              const teacher = await Teacher.findOne({ teacher_id: course.teacher_id[0] });
               if (teacher && teacher.name) {
                 instructorName = teacher.name;
               }
@@ -189,12 +192,11 @@ const studentController = {
 
           // Get TAs with better error handling
           let TAs = [];
-          if (Array.isArray(course.student_list) && course.student_list.length > 0) {
+          if (Array.isArray(course.TA) && course.TA.length > 0) {
             try {
               TAs = await Student.find({ 
-                _id: { $in: course.student_list }, 
-                is_TA: true 
-              }, 'name roll_no');
+                student_id: { $in: course.TA }
+              }, 'name roll_no student_id');
             } catch (taError) {
               // Silently handle TA lookup errors
               TAs = [];
@@ -274,7 +276,7 @@ const studentController = {
         let instructorName = 'Unknown';
         if (Array.isArray(course.teacher_id) && course.teacher_id.length > 0) {
           const Teacher = require('../models/Teachers');
-          const teacher = await Teacher.findById(course.teacher_id[0]);
+          const teacher = await Teacher.findOne({ teacher_id: course.teacher_id[0] });
           if (teacher) {
             instructorName = teacher.name;
           }
@@ -325,14 +327,14 @@ const studentController = {
       // Get lectures for courses the student is enrolled in
       const now = new Date();
       const lectures = await Lecture.find({
-        course_id: { $in: student.courses_id }
+        course_id: { $in: student.courses_id_enrolled }
       }).populate('course_id', 'course_name');
 
       // Filter lectures: only those starting within 15 min from now and not ended
       const filteredLectures = lectures.filter(lecture => {
-        if (!lecture.scheduled_time || !lecture.end_time) return false;
-        const start = new Date(lecture.scheduled_time);
-        const end = new Date(lecture.end_time);
+        if (!lecture.class_start || !lecture.class_end) return false;
+        const start = new Date(lecture.class_start);
+        const end = new Date(lecture.class_end);
         // Show if now >= (start - 15min) and now <= end
         return now >= new Date(start.getTime() - 15 * 60 * 1000) && now <= end;
       });
@@ -344,8 +346,8 @@ const studentController = {
             lecture_id: lecture._id,
             course_id: lecture.course_id?._id || lecture.course_id,
             course_name: lecture.course_id?.course_name,
-            scheduled_time: lecture.scheduled_time,
-            lecture_number: lecture.lecture_number
+            class_start: lecture.class_start,
+            lec_num: lecture.lec_num
           }))
         }
       });
@@ -373,13 +375,13 @@ const studentController = {
       // Get lectures for courses the student is enrolled in
       const now = new Date();
       const lectures = await Lecture.find({
-        course_id: { $in: student.courses_id }
+        course_id: { $in: student.courses_id_enrolled }
       }).populate('course_id', 'course_name');
 
       // Filter lectures: only those where now > end time
       const filteredLectures = lectures.filter(lecture => {
-        if (!lecture.end_time) return false;
-        const end = new Date(lecture.end_time);
+        if (!lecture.class_end) return false;
+        const end = new Date(lecture.class_end);
         return now > end;
       });
 
@@ -390,8 +392,8 @@ const studentController = {
             lecture_id: lecture._id,
             course_id: lecture.course_id?._id || lecture.course_id,
             course_name: lecture.course_id?.course_name,
-            scheduled_time: lecture.scheduled_time,
-            lecture_number: lecture.lecture_number
+            class_start: lecture.class_start,
+            lec_num: lecture.lec_num
           }))
         }
       });
@@ -686,7 +688,7 @@ const studentController = {
 
       // Only allow if student is TA
       const student = await Student.findById(studentId);
-      if (!student || !student.is_TA) {
+      if (!student || !student.is_TA || student.is_TA === '') {
         return res.status(403).json({
           success: false,
           message: 'Only TAs can answer questions.'
@@ -863,13 +865,197 @@ const studentController = {
             lec_num: lecture.lec_num,
             class_start: lecture.class_start,
             class_end: lecture.class_end,
-            topic: lecture.topic
+            lecture_title: lecture.lecture_title
           },
           totalCount: formattedQuestions.length
         }
       });
     } catch (error) {
       console.error('Error fetching lecture doubts:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: error.message
+      });
+    }
+  },
+
+  // Get available classes for joining
+  getAvailableClasses: async (req, res) => {
+    try {
+      const studentId = req.user.id;
+      
+      // Get student to find their enrolled courses
+      const student = await Student.findById(studentId);
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message: 'Student not found'
+        });
+      }
+
+      // Find courses where student is enrolled
+      const enrolledCourses = await Course.find({ student_list: studentId });
+      const courseIds = enrolledCourses.map(course => course.course_id);
+
+      // Get lectures from enrolled courses that are available to join
+      // (lectures that are either live or recently ended)
+      const now = new Date();
+      const fifteenMinutesAgo = new Date(now.getTime() - 15 * 60 * 1000);
+
+      const availableLectures = await Lecture.find({
+        course_id: { $in: courseIds },
+        class_start: { $lte: now },
+        class_end: { $gte: fifteenMinutesAgo }
+      }).sort({ class_start: -1 });
+
+      // Format lectures with course information
+      const formattedLectures = await Promise.all(availableLectures.map(async lecture => {
+        const course = enrolledCourses.find(c => c.course_id === lecture.course_id);
+        
+        return {
+          _id: lecture._id,
+          lecture_id: lecture.lecture_id,
+          course_id: lecture.course_id,
+          course_name: course?.course_name || 'Unknown Course',
+          lec_num: lecture.lec_num,
+          lecture_title: lecture.lecture_title,
+          class_start: lecture.class_start,
+          class_end: lecture.class_end,
+          joined_students_count: lecture.joined_students ? lecture.joined_students.length : 0,
+          is_joined: lecture.joined_students ? lecture.joined_students.includes(studentId) : false
+        };
+      }));
+
+      res.status(200).json({
+        success: true,
+        data: {
+          lectures: formattedLectures
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching available classes:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: error.message
+      });
+    }
+  },
+
+  // Get questions for a specific lecture (for class doubts)
+  getLectureQuestions: async (req, res) => {
+    try {
+      const { lectureId } = req.params;
+      const studentId = req.user.id;
+      
+      if (!lectureId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Lecture ID is required'
+        });
+      }
+
+      // Verify lecture exists and get course info
+      const lecture = await Lecture.findById(lectureId);
+      if (!lecture) {
+        return res.status(404).json({
+          success: false,
+          message: 'Lecture not found'
+        });
+      }
+
+      // Check if student is enrolled in the course
+      const course = await Course.findOne({ 
+        course_id: lecture.course_id, 
+        student_list: studentId 
+      });
+      if (!course) {
+        return res.status(403).json({
+          success: false,
+          message: 'You do not have access to this lecture'
+        });
+      }
+
+      // Get questions for this lecture
+      const questions = await Question.find({ lecture_id: lecture.lecture_id })
+        .populate('answer')
+        .sort({ timestamp: -1 });
+
+      // Format questions with mock student names for privacy
+      const mockStudentNames = ['Alice Johnson', 'Bob Smith', 'Charlie Davis', 'Diana Wilson', 'Emma Brown', 'Frank Miller'];
+      
+      const formattedQuestions = questions.map((question, index) => {
+        const randomName = mockStudentNames[index % mockStudentNames.length];
+        const hasAnswer = question.answer && question.answer.length > 0;
+        
+        return {
+          _id: question._id,
+          question_id: question.question_id,
+          question_text: question.question_text,
+          student_name: randomName,
+          timestamp: question.timestamp,
+          is_answered: question.is_answered,
+          upvotes: question.upvotes || 0,
+          answer: hasAnswer ? question.answer[0].answer : null
+        };
+      });
+
+      res.status(200).json({
+        success: true,
+        data: {
+          questions: formattedQuestions,
+          lecture: {
+            _id: lecture._id,
+            lecture_id: lecture.lecture_id,
+            course_id: lecture.course_id,
+            lec_num: lecture.lec_num,
+            class_start: lecture.class_start,
+            class_end: lecture.class_end,
+            lecture_title: lecture.lecture_title
+          },
+          totalCount: formattedQuestions.length
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching lecture questions:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: error.message
+      });
+    }
+  },
+
+  // Get course information
+  getCourseInfo: async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const studentId = req.user.id;
+      
+      const course = await Course.findOne({ 
+        course_id: courseId,
+        student_list: studentId 
+      });
+      
+      if (!course) {
+        return res.status(404).json({
+          success: false,
+          message: 'Course not found or access denied'
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          course_id: course.course_id,
+          course_name: course.course_name,
+          batch: course.batch,
+          branch: course.branch
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching course info:', error);
       res.status(500).json({
         success: false,
         message: 'Server error',

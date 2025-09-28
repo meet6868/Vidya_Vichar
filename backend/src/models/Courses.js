@@ -13,6 +13,10 @@ const CoursesSchema = new mongoose.Schema({
   },
   teacher_id: [{
     type: String
+    
+  }],
+  TA:[{
+    type: String,
   }],
   batch: {
     type: String,
