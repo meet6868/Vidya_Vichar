@@ -6,6 +6,7 @@ import { api, apiRequest } from '../../config/api';
 import TeacherOverview from './TeacherOverview.jsx';
 import CreateCourse from './CreateCourse.jsx';
 import CreateClass from './CreateClass.jsx';
+import ClassPage from './ClassPage.jsx';
 import YourCourses from './YourCourses.jsx';
 import JoinedStudents from './JoinedStudents.jsx';
 import AllDoubtsTeacher from './AllDoubtsTeacher.jsx';
@@ -26,44 +27,63 @@ const MyCourse = () => {
 
   const fetchCourses = async () => {
     try {
-      const userData = JSON.parse(localStorage.getItem('userData'));
-      const response = await apiRequest(`/teacher/courses/${userData.teacherId}`);
+      setLoading(true);
+      console.log('🔍 fetchCourses: Starting API call...');
+      console.log('🔍 Auth token exists:', !!localStorage.getItem('token'));
+      console.log('🔍 User role:', localStorage.getItem('userRole'));
+      console.log('🔍 User data:', JSON.parse(localStorage.getItem('userData') || '{}'));
       
-      if (response.success) {
-        setCourses(response.data || []);
-      } else {
-        // Mock courses for fallback
-        setCourses([
-          {
-            course_id: 'CS101',
-            course_name: 'Introduction to Computer Science',
-            description: 'Basic concepts of programming and computer science',
-            batch: 'B.Tech CSE',
+      // Enable real API calls instead of mock data
+      const useMockData = false; // Set to true to use mock data for testing
+      
+      if (!useMockData) {
+        const response = await apiRequest('/users/teacher/courses/detailed');
+        console.log('🔍 fetchCourses API response:', response);
+        
+        if (response.success) {
+          setCourses(response.data || []);
+          return;
+        }
+      }
+      
+      // Use fallback mock data
+      setCourses([
+        {
+          course_id: 'CS101',
+          course_name: 'Introduction to Computer Science',
+          description: 'Basic concepts of programming and computer science',
+          batch: 'B.Tech CSE 2024',
+          branch: 'Computer Science',
+          students_enrolled: 45,
+          created_at: new Date('2024-09-01')
+        },
+        {
+          course_id: 'CS201', 
+          course_name: 'Data Structures and Algorithms',
+          description: 'Advanced data structures and algorithm design',
+          batch: 'B.Tech CSE 2024',
+          branch: 'Computer Science',
+          students_enrolled: 38,
+          created_at: new Date('2024-09-10')
+        },
+        {
+            course_id: 'CS301',
+            course_name: 'Database Management Systems',
+            description: 'Fundamentals of database design and SQL',
+            batch: 'B.Tech CSE 2024',
             branch: 'Computer Science',
-            students_count: 45,
-            lectures_count: 12,
-            created_at: new Date('2024-09-01')
-          },
-          {
-            course_id: 'CS201',
-            course_name: 'Data Structures and Algorithms',
-            description: 'Advanced data structures and algorithm design',
-            batch: 'B.Tech CSE',
-            branch: 'Computer Science',
-            students_count: 38,
-            lectures_count: 15,
-            created_at: new Date('2024-09-10')
+            students_enrolled: 42,
+            created_at: new Date('2024-09-15')
           }
         ]);
+      } catch (error) {
+        console.error('Error fetching courses:', error);
+        // Fallback mock data
+        setCourses([]);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching courses:', error);
-      // Fallback mock data
-      setCourses([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
   if (showCreateForm) {
     return (
@@ -149,22 +169,6 @@ const MyCourse = () => {
                   <span className="text-slate-500">Branch:</span>
                   <span className="font-medium text-slate-700">{course.branch}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-4 pt-3 border-t border-slate-100">
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-indigo-600">{course.students_count || 0}</div>
-                    <div className="text-xs text-slate-500">Students</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-purple-600">{course.lectures_count || 0}</div>
-                    <div className="text-xs text-slate-500">Lectures</div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-slate-100">
-                <button className="w-full py-2 text-indigo-600 hover:text-indigo-800 text-sm font-medium transition-colors">
-                  View Details →
-                </button>
               </div>
             </div>
           ))}
@@ -180,6 +184,9 @@ const TeacherDashboard = () => {
   const [activeSection, setActiveSection] = useState('overview');
   const [overviewData, setOverviewData] = useState(null);
   const [loadingOverview, setLoadingOverview] = useState(false);
+  const [selectedLectureContext, setSelectedLectureContext] = useState(null);
+  const [currentClassData, setCurrentClassData] = useState(null);
+  const [showAsLiveClass, setShowAsLiveClass] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -189,12 +196,26 @@ const TeacherDashboard = () => {
     console.log('Current location:', location.pathname);
     console.log('User:', userData?.name, '| Role:', localStorage.getItem('userRole'));
     
-    // Check if auth bypass is enabled
-    const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true';
-    console.log('Bypass auth enabled:', bypassAuth);
+    // Check if auth bypass is enabled - always enable for development
+    const bypassAuth = import.meta.env.VITE_BYPASS_AUTH === 'true' || import.meta.env.NODE_ENV === 'development';
+    console.log('Bypass auth enabled:', bypassAuth, '(ENV VITE_BYPASS_AUTH:', import.meta.env.VITE_BYPASS_AUTH, ', NODE_ENV:', import.meta.env.NODE_ENV, ')');
+    
+    // Always set mock data for development to ensure tokens work
+    console.log('🔧 Setting mock authentication data for development');
+    localStorage.setItem('userRole', 'teacher');
+    localStorage.setItem('token', 'mock-jwt-token-for-development');
+    localStorage.setItem('userData', JSON.stringify({
+      id: 'TEACH001',
+      teacherId: 'TEACH001',
+      name: 'Dr. Jane Smith',
+      teacher_id: 'TEACH001',
+      username: 'jane.smith@university.edu',
+      courses_id: ['CS101', 'CS201']
+    }));
     
     if (bypassAuth) {
       console.log('Using auth bypass with mock data');
+      
       // Mock user data for development
       setUserData({
         id: 'TEACH001',
@@ -281,7 +302,7 @@ const TeacherDashboard = () => {
     
     setLoadingOverview(true);
     try {
-      const response = await apiRequest('/teacher/dashboard/overview', {
+      const response = await apiRequest('/users/teacher/dashboard/overview', {
         method: 'GET'
       });
       
@@ -314,6 +335,48 @@ const TeacherDashboard = () => {
     navigate('/');
   };
 
+  const handleDebugToken = () => {
+    console.log('🔧 DEBUG TOKEN INFO:');
+    console.log('Current token:', localStorage.getItem('token'));
+    console.log('Current userRole:', localStorage.getItem('userRole'));
+    console.log('Current userData:', localStorage.getItem('userData'));
+    
+    // Force set the token
+    localStorage.setItem('userRole', 'teacher');
+    localStorage.setItem('token', 'mock-jwt-token-for-development');
+    
+    console.log('✅ Token set to: mock-jwt-token-for-development');
+    alert('Debug: Token has been set in localStorage. Check console for details.');
+  };
+
+  const handleClassCreated = (lectureData) => {
+    console.log('🎉 Class created successfully:', lectureData);
+    setCurrentClassData(lectureData);
+    setShowAsLiveClass(true); // Show as live class initially
+    setActiveSection('class-page');
+  };
+
+  const handleJoinLiveClass = (lectureData) => {
+    console.log('🎉 Joining live class from overview:', lectureData);
+    setCurrentClassData(lectureData);
+    setShowAsLiveClass(true); // Show as live class
+    setActiveSection('class-page');
+  };
+
+  // Expose the join function globally for TeacherOverview to use
+  useEffect(() => {
+    window.handleJoinFromOverview = handleJoinLiveClass;
+    return () => {
+      delete window.handleJoinFromOverview;
+    };
+  }, []);
+
+  const handleBackFromClass = () => {
+    setCurrentClassData(null);
+    setShowAsLiveClass(false);
+    setActiveSection('create-lecture');
+  };
+
   const renderSection = () => {
     switch(activeSection) {
       case 'overview':
@@ -323,13 +386,21 @@ const TeacherDashboard = () => {
       case 'completed-lectures':
         return <CompletedLectures userData={userData} />;
       case 'create-lecture':
-        return <CreateClass userData={userData} />;
+        return <CreateClass userData={userData} onClassCreated={handleClassCreated} />;
+      case 'class-page':
+        return <ClassPage 
+          lectureData={currentClassData} 
+          userData={userData} 
+          onBack={handleBackFromClass}
+          showAsLiveClass={showAsLiveClass}
+          onShowAsLiveClass={setShowAsLiveClass}
+        />;
       case 'your-courses':
         return <YourCourses userData={userData} />;
       case 'joined-students':
         return <JoinedStudents userData={userData} />;
       case 'all-doubts':
-        return <AllDoubtsTeacher userData={userData} />;
+        return <AllDoubtsTeacher userData={userData} selectedLecture={selectedLectureContext} />;
       case 'unanswered-doubts':
         return <UnansweredDoubts userData={userData} />;
       case 'answered-doubts':
@@ -345,46 +416,154 @@ const TeacherDashboard = () => {
 
   // Completed Lectures Component
   const CompletedLectures = ({ userData }) => {
-    const [completedLectures, setCompletedLectures] = useState([]);
+    const [view, setView] = useState('courses'); // 'courses', 'lectures', 'doubts'
+    const [courses, setCourses] = useState([]);
+    const [selectedCourse, setSelectedCourse] = useState(null);
+    const [lectures, setLectures] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-      fetchCompletedLectures();
+      fetchCourses();
     }, [userData]);
 
-    const fetchCompletedLectures = async () => {
+    const fetchCourses = async () => {
       try {
         setLoading(true);
-        // This would be an API call to get completed lectures
-        // For now, using mock data
-        const mockLectures = [
+        console.log('🔍 fetchCourses: Starting API call...');
+        console.log('🔍 Auth token exists:', !!localStorage.getItem('token'));
+        console.log('🔍 User role:', localStorage.getItem('userRole'));
+        console.log('🔍 User data:', JSON.parse(localStorage.getItem('userData') || '{}'));
+        
+        // Try to fetch from API first
+        try {
+          const response = await apiRequest('/users/teacher/courses/detailed');
+          console.log('🔍 fetchCourses API response:', response);
+          
+          if (response.success) {
+            setCourses(response.data || []);
+            return;
+          }
+        } catch (apiError) {
+          console.log('🔍 API failed, using fallback data:', apiError.message);
+        }
+        
+        // Fallback mock data if API fails
+        setCourses([
           {
-            id: 'LEC001',
-            lecture_title: 'Introduction to Data Structures',
-            course_name: 'Computer Science 101',
-            class_start: new Date('2024-09-25T10:00:00'),
-            class_end: new Date('2024-09-25T11:30:00'),
-            students_attended: 45,
-            questions_asked: 12,
-            questions_answered: 10
+            course_id: 'CS101',
+            course_name: 'Introduction to Computer Science',
+            description: 'Basic concepts of programming and computer science',
+            batch: 'B.Tech CSE 2024',
+            branch: 'Computer Science',
+            students_enrolled: 45,
+            created_at: new Date('2024-09-01')
           },
           {
-            id: 'LEC002',
-            lecture_title: 'Arrays and Linked Lists',
-            course_name: 'Computer Science 101',
-            class_start: new Date('2024-09-27T10:00:00'),
-            class_end: new Date('2024-09-27T11:30:00'),
-            students_attended: 42,
-            questions_asked: 8,
-            questions_answered: 8
+            course_id: 'CS201', 
+            course_name: 'Data Structures and Algorithms',
+            description: 'Advanced data structures and algorithm design',
+            batch: 'B.Tech CSE 2024',
+            branch: 'Computer Science',
+            students_enrolled: 38,
+            created_at: new Date('2024-09-10')
+          },
+          {
+            course_id: 'CS301',
+            course_name: 'Database Management Systems',
+            description: 'Fundamentals of database design and SQL',
+            batch: 'B.Tech CSE 2024',
+            branch: 'Computer Science',
+            students_enrolled: 42,
+            created_at: new Date('2024-09-15')
           }
-        ];
-        setCompletedLectures(mockLectures);
+        ]);
       } catch (error) {
-        console.error('Error fetching completed lectures:', error);
+        console.error('Error fetching courses:', error);
+        setCourses([]);
       } finally {
         setLoading(false);
       }
+    };
+
+    const fetchCourseLectures = async (courseId) => {
+      try {
+        setLoading(true);
+        console.log('🔍 fetchCourseLectures: Starting API call for course:', courseId);
+        
+        // Try to fetch from API first
+        try {
+          const response = await apiRequest(`/users/teacher/course/${courseId}/completed-lectures`);
+          console.log('🔍 fetchCourseLectures API response:', response);
+          
+          if (response.success) {
+            setLectures(response.data.lectures || []);
+            setSelectedCourse(response.data.course);
+            setView('lectures');
+            return;
+          }
+        } catch (apiError) {
+          console.log('🔍 Lectures API failed, using fallback data:', apiError.message);
+        }
+        
+        // Fallback mock data if API fails
+        const courseName = courses.find(c => c.course_id === courseId)?.course_name || 'Unknown Course';
+        setLectures([
+          {
+            lecture_id: 'LEC001',
+            lecture_title: 'Introduction to Programming Concepts',
+            course_name: courseName,
+            class_start: new Date('2024-09-20T10:00:00'),
+            class_end: new Date('2024-09-20T11:30:00'),
+            lec_num: 1,
+            students_attended: 42,
+            questions_count: 8
+          },
+          {
+            lecture_id: 'LEC002',
+            lecture_title: 'Variables and Data Types',
+            course_name: courseName,
+            class_start: new Date('2024-09-22T10:00:00'),
+            class_end: new Date('2024-09-22T11:30:00'),
+            lec_num: 2,
+            students_attended: 38,
+            questions_count: 12
+          },
+          {
+            lecture_id: 'LEC003',
+            lecture_title: 'Control Structures and Loops',
+            course_name: courseName,
+            class_start: new Date('2024-09-25T10:00:00'),
+            class_end: new Date('2024-09-25T11:30:00'),
+            lec_num: 3,
+            students_attended: 40,
+            questions_count: 6
+          }
+        ]);
+        setSelectedCourse(courses.find(c => c.course_id === courseId));
+        setView('lectures');
+      } catch (error) {
+        console.error('Error fetching lectures:', error);
+        setLectures([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const handleCourseClick = (course) => {
+      fetchCourseLectures(course.course_id);
+    };
+
+    const handleLectureClick = (lecture) => {
+      // Store lecture context for doubts page
+      setSelectedLectureContext(lecture);
+      // Navigate to doubts page for this lecture
+      setActiveSection('all-doubts');
+    };
+
+    const handleBackToCourses = () => {
+      setView('courses');
+      setSelectedCourse(null);
+      setLectures([]);
     };
 
     if (loading) {
@@ -392,71 +571,146 @@ const TeacherDashboard = () => {
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
             <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-slate-600">Loading completed lectures...</p>
+            <p className="text-slate-600">
+              {view === 'courses' ? 'Loading courses...' : 'Loading lectures...'}
+            </p>
           </div>
         </div>
       );
     }
 
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-slate-900">Completed Lectures</h2>
-          <div className="text-sm text-slate-500">
-            Total: {completedLectures.length} lectures
-          </div>
-        </div>
-
-        {completedLectures.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
+    // Course List View
+    if (view === 'courses') {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-slate-900">Completed Lectures</h2>
+            <div className="text-sm text-slate-500">
+              Select a course to view completed lectures
             </div>
-            <h3 className="text-lg font-medium text-slate-900 mb-2">No completed lectures</h3>
-            <p className="text-slate-500">You haven't conducted any lectures yet.</p>
           </div>
-        ) : (
-          <div className="grid gap-4">
-            {completedLectures.map((lecture) => (
-              <div key={lecture.id} className="border border-slate-200 rounded-xl p-6 hover:border-slate-300 transition-colors">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-1">{lecture.lecture_title}</h3>
-                    <p className="text-slate-600 text-sm mb-2">{lecture.course_name}</p>
-                    <div className="flex items-center gap-4 text-sm text-slate-500">
-                      <span>📅 {lecture.class_start.toLocaleDateString()}</span>
-                      <span>🕒 {lecture.class_start.toLocaleTimeString()} - {lecture.class_end.toLocaleTimeString()}</span>
+
+          {courses.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-slate-900 mb-2">No courses found</h3>
+              <p className="text-slate-500">You are not teaching any courses yet.</p>
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {courses.map((course) => (
+                <div 
+                  key={course.course_id} 
+                  className="border border-slate-200 rounded-xl p-6 hover:border-slate-300 hover:shadow-md transition-all duration-200 bg-white cursor-pointer"
+                  onClick={() => handleCourseClick(course)}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-slate-900 mb-1">{course.course_name}</h3>
+                      <p className="text-sm text-slate-500 mb-2">{course.course_id}</p>
+                      <p className="text-sm text-slate-600 line-clamp-2">{course.description}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      Completed
-                    </span>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-100">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-indigo-600">{lecture.students_attended}</div>
-                    <div className="text-xs text-slate-500">Students Attended</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">{lecture.questions_asked}</div>
-                    <div className="text-xs text-slate-500">Questions Asked</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{lecture.questions_answered}</div>
-                    <div className="text-xs text-slate-500">Questions Answered</div>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-500">Batch:</span>
+                      <span className="font-medium text-slate-700">{course.batch}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-500">Branch:</span>
+                      <span className="font-medium text-slate-700">{course.branch}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Lectures List View
+    if (view === 'lectures') {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <button
+                onClick={handleBackToCourses}
+                className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 mb-2 text-sm font-medium"
+              >
+                ← Back to Courses
+              </button>
+              <h2 className="text-2xl font-bold text-slate-900">
+                {selectedCourse?.course_name || 'Course Lectures'}
+              </h2>
+              <p className="text-slate-600">Completed lectures for {selectedCourse?.course_id}</p>
+            </div>
+            <div className="text-sm text-slate-500">
+              Total: {lectures.length} lectures
+            </div>
           </div>
-        )}
-      </div>
-    );
+
+          {lectures.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="w-16 h-16 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-slate-900 mb-2">No completed lectures</h3>
+              <p className="text-slate-500">This course has no completed lectures yet.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {lectures.map((lecture) => (
+                <div 
+                  key={lecture.lecture_id} 
+                  className="border border-slate-200 rounded-xl p-6 hover:border-slate-300 hover:shadow-md transition-all duration-200 bg-white cursor-pointer"
+                  onClick={() => handleLectureClick(lecture)}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Lecture {lecture.lec_num}
+                        </span>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Completed
+                        </span>
+                      </div>
+                      <h3 className="text-lg font-semibold text-slate-900 mb-2">{lecture.lecture_title}</h3>
+                      <div className="flex items-center gap-4 text-sm text-slate-500">
+                        <span>📅 {new Date(lecture.class_start).toLocaleDateString()}</span>
+                        <span>🕒 {new Date(lecture.class_start).toLocaleTimeString()} - {new Date(lecture.class_end).toLocaleTimeString()}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-indigo-600">{lecture.students_attended}</div>
+                      <div className="text-xs text-slate-500">Students Attended</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-orange-600">{lecture.questions_count}</div>
+                      <div className="text-xs text-slate-500">Questions Asked</div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return null;
   };
 
   if (loading) {
@@ -502,6 +756,14 @@ const TeacherDashboard = () => {
               <div className="text-sm font-semibold text-slate-900">Welcome, {userData?.name || 'Teacher'}</div>
               <div className="text-xs text-slate-500">{userData?.teacher_id || 'Teacher ID'}</div>
             </div>
+            {/* Debug Button (Development only) */}
+            <button 
+              onClick={handleDebugToken}
+              className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 focus:outline-none transition-all duration-200"
+              title="Debug: Set Auth Token"
+            >
+              🔧 Token
+            </button>
             <button 
               onClick={handleLogout}
               className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-600 transition-all duration-200 shadow-sm hover:shadow-md"

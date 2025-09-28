@@ -47,6 +47,20 @@ const StudentDashboard = () => {
     
     if (bypassAuth) {
       console.log('Using auth bypass with mock data');
+      
+      // Set mock authentication data for API requests
+      localStorage.setItem('userRole', 'student');
+      localStorage.setItem('token', 'mock-jwt-token-for-development');
+      localStorage.setItem('userData', JSON.stringify({
+        id: 'STU001',
+        name: 'John Doe',
+        roll_no: '001',
+        batch: 'B.Tech',
+        branch: 'CSE',
+        username: 'john.doe@university.edu',
+        is_TA: false
+      }));
+      
       // Mock user data for development
       setUserData({
         id: 'STU001',

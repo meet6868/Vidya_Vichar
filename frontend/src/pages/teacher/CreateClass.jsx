@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../../config/api';
 
-const CreateClass = ({ userData }) => {
+const CreateClass = ({ userData, onClassCreated }) => {
   const [formData, setFormData] = useState({
     lecture_id: '',
     lecture_title: '',
     course_id: '',
     class_start: '',
-    class_end: '',
-    lec_num: 1
+    class_end: ''
   });
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [message, setMessage] = useState({ text: '', type: '' });
+  const [createdLecture, setCreatedLecture] = useState(null);
 
   // Fetch teacher's courses when component mounts
   useEffect(() => {
@@ -23,15 +23,28 @@ const CreateClass = ({ userData }) => {
   const fetchCourses = async () => {
     try {
       setLoadingCourses(true);
-      // Mock data for now - replace with actual API call
-      const mockCourses = [
-        { course_id: 'CS101', course_name: 'Introduction to Computer Science' },
-        { course_id: 'CS201', course_name: 'Data Structures and Algorithms' },
-        { course_id: 'CS301', course_name: 'Database Management Systems' }
-      ];
-      setCourses(mockCourses);
+      console.log('🔍 fetchCourses: Starting API call for CreateClass...');
+      
+      const response = await apiRequest('/users/teacher/courses/detailed');
+      console.log('🔍 fetchCourses API response:', response);
+      
+      if (response.success) {
+        const coursesData = response.data || [];
+        // Transform the data to match our expected format
+        const formattedCourses = coursesData.map(course => ({
+          course_id: course.course_id,
+          course_name: course.course_name
+        }));
+        setCourses(formattedCourses);
+      } else {
+        console.error('Failed to fetch courses:', response.message);
+        // Fallback to empty array if API fails
+        setCourses([]);
+      }
     } catch (error) {
       console.error('Error fetching courses:', error);
+      // Fallback to empty array on error
+      setCourses([]);
     } finally {
       setLoadingCourses(false);
     }
@@ -43,15 +56,6 @@ const CreateClass = ({ userData }) => {
       ...prev,
       [name]: value
     }));
-  };
-
-  const generateLectureId = () => {
-    const courseId = formData.course_id;
-    const lecNum = formData.lec_num;
-    if (courseId) {
-      return `${courseId}_LEC_${lecNum.toString().padStart(2, '0')}_${Date.now()}`;
-    }
-    return '';
   };
 
   const handleSubmit = async (e) => {
@@ -72,30 +76,48 @@ const CreateClass = ({ userData }) => {
         throw new Error('End time must be after start time');
       }
 
-      const lectureId = generateLectureId();
-      
-      const response = await apiRequest('/teacher/lecture', {
+      console.log('🔍 Creating lecture with data:', {
+        lecture_title: formData.lecture_title,
+        course_id: formData.course_id,
+        class_start: formData.class_start,
+        class_end: formData.class_end
+      });
+
+      const response = await apiRequest('/users/teacher/lecture', {
         method: 'POST',
         body: JSON.stringify({
-          lecture_id: lectureId,
           lecture_title: formData.lecture_title,
           course_id: formData.course_id,
           class_start: formData.class_start,
-          class_end: formData.class_end,
-          lec_num: parseInt(formData.lec_num)
+          class_end: formData.class_end
         })
       });
 
       if (response.success) {
         setMessage({ text: 'Lecture created successfully!', type: 'success' });
+        
+        // Prepare lecture data for the ClassPage
+        const lectureData = {
+          lecture_id: response.data?.lecture?.lecture_id,
+          lecture_title: formData.lecture_title,
+          course_id: formData.course_id,
+          class_start: formData.class_start,
+          class_end: formData.class_end,
+          lec_num: response.data?.lecture?.lec_num
+        };
+        
+        console.log('🔍 Created lecture data:', lectureData);
+        
+        // Store the created lecture data to show join option
+        setCreatedLecture(lectureData);
+        
         // Reset form
         setFormData({
           lecture_id: '',
           lecture_title: '',
           course_id: '',
           class_start: '',
-          class_end: '',
-          lec_num: 1
+          class_end: ''
         });
       } else {
         throw new Error(response.message || 'Failed to create lecture');
@@ -124,12 +146,143 @@ const CreateClass = ({ userData }) => {
     return start.toISOString().slice(0, 16);
   };
 
+  const handleJoinClass = () => {
+    if (createdLecture && onClassCreated) {
+      onClassCreated(createdLecture);
+    }
+  };
+
+  const handleCreateAnother = () => {
+    setCreatedLecture(null);
+    setMessage({ text: '', type: '' });
+  };
+
+  const isClassLive = () => {
+    if (!createdLecture) return false;
+    const now = new Date();
+    const startTime = new Date(createdLecture.class_start);
+    const endTime = new Date(createdLecture.class_end);
+    return now >= startTime && now <= endTime;
+  };
+
+  const getClassStatus = () => {
+    if (!createdLecture) return 'Unknown';
+    const now = new Date();
+    const startTime = new Date(createdLecture.class_start);
+    const endTime = new Date(createdLecture.class_end);
+    
+    if (now < startTime) return 'Scheduled';
+    if (now >= startTime && now <= endTime) return 'Live Now';
+    if (now > endTime) return 'Completed';
+    return 'Unknown';
+  };
+
   if (loadingCourses) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-slate-600">Loading courses...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show success view with join options after lecture creation
+  if (createdLecture) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center mb-8">
+          <div className="w-20 h-20 rounded-full bg-green-100 text-green-600 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Lecture Created Successfully!</h1>
+          <p className="text-slate-600">Your lecture has been scheduled. You can now join the class or create another lecture.</p>
+        </div>
+
+        <div className="max-w-2xl mx-auto">
+          {/* Created Lecture Info Card */}
+          <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-sm mb-6">
+            <h2 className="text-xl font-semibold text-slate-900 mb-6">Lecture Details</h2>
+            
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 mb-4">
+                <h3 className="text-lg font-semibold text-slate-900">{createdLecture.lecture_title}</h3>
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                  isClassLive() ? 'bg-green-100 text-green-800' : 
+                  getClassStatus() === 'Scheduled' ? 'bg-blue-100 text-blue-800' : 
+                  'bg-slate-100 text-slate-600'
+                }`}>
+                  {isClassLive() ? '🔴 Live Now' : getClassStatus()}
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600">
+                <div>
+                  <span className="font-medium">Course:</span> {createdLecture.course_id}
+                </div>
+                <div>
+                  <span className="font-medium">Lecture:</span> {createdLecture.lec_num || 'New'}
+                </div>
+                <div>
+                  <span className="font-medium">Date:</span> {new Date(createdLecture.class_start).toLocaleDateString()}
+                </div>
+                <div>
+                  <span className="font-medium">Time:</span> {
+                    `${new Date(createdLecture.class_start).toLocaleTimeString()} - ${new Date(createdLecture.class_end).toLocaleTimeString()}`
+                  }
+                </div>
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 pt-6 border-t border-slate-100 mt-6">
+              <button
+                onClick={handleJoinClass}
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 font-medium"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                {isClassLive() ? 'Join Live Class' : 'Go to Class Page'}
+              </button>
+              
+              <button
+                onClick={handleCreateAnother}
+                className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-all duration-200 font-medium"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Create Another Lecture
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+            <h3 className="font-semibold text-blue-900 mb-3">✨ What's Next?</h3>
+            <ul className="space-y-2 text-sm text-blue-800">
+              <li className="flex items-start gap-2">
+                <span className="text-blue-600 mt-1">🎥</span>
+                <span><strong>Join Class:</strong> Click "Join Live Class" to start managing your lecture and interact with students</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-blue-600 mt-1">❓</span>
+                <span><strong>Manage Doubts:</strong> Answer student questions and doubts during the live session</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-blue-600 mt-1">📚</span>
+                <span><strong>View All:</strong> Check your completed lectures to see all past sessions</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-blue-600 mt-1">➕</span>
+                <span><strong>Create More:</strong> Schedule additional lectures for your courses</span>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     );
@@ -162,44 +315,26 @@ const CreateClass = ({ userData }) => {
               />
             </div>
 
-            {/* Course Selection and Lecture Number */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2">
-                <label htmlFor="course_id" className="block text-sm font-medium text-slate-700 mb-2">
-                  Course *
-                </label>
-                <select
-                  id="course_id"
-                  name="course_id"
-                  value={formData.course_id}
-                  onChange={handleChange}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  required
-                >
-                  <option value="">Select a course</option>
-                  {courses.map((course) => (
-                    <option key={course.course_id} value={course.course_id}>
-                      {course.course_id} - {course.course_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="lec_num" className="block text-sm font-medium text-slate-700 mb-2">
-                  Lecture Number *
-                </label>
-                <input
-                  type="number"
-                  id="lec_num"
-                  name="lec_num"
-                  value={formData.lec_num}
-                  onChange={handleChange}
-                  min="1"
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  required
-                />
-              </div>
+            {/* Course Selection */}
+            <div>
+              <label htmlFor="course_id" className="block text-sm font-medium text-slate-700 mb-2">
+                Course *
+              </label>
+              <select
+                id="course_id"
+                name="course_id"
+                value={formData.course_id}
+                onChange={handleChange}
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                required
+              >
+                <option value="">Select a course</option>
+                {courses.map((course) => (
+                  <option key={course.course_id} value={course.course_id}>
+                    {course.course_id} - {course.course_name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Start and End Time */}
@@ -245,18 +380,6 @@ const CreateClass = ({ userData }) => {
                 />
               </div>
             </div>
-
-            {/* Generated Lecture ID Display */}
-            {formData.course_id && formData.lec_num && (
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Generated Lecture ID
-                </label>
-                <code className="text-sm text-slate-600 bg-white px-3 py-2 rounded border">
-                  {generateLectureId()}
-                </code>
-              </div>
-            )}
 
             {/* Message Display */}
             {message.text && (

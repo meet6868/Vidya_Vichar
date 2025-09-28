@@ -101,25 +101,53 @@ export const getAuthHeaders = () => {
     ...API_CONFIG.DEFAULT_HEADERS
   };
   
+  console.log('🔍 getAuthHeaders called - Current localStorage:');
+  console.log('  - token:', localStorage.getItem('token'));
+  console.log('  - userRole:', localStorage.getItem('userRole'));
+  
   // Add Authorization header if token exists in localStorage
-  const token = localStorage.getItem('token');
+  let token = localStorage.getItem('token');
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
-    console.log('Added Authorization header with token');
+    console.log('✅ Added Authorization header with existing token');
   } else {
-    console.log('No token found in localStorage, relying on HTTP-only cookies');
+    // Development fallback - check if we're in bypass mode
+    const userRole = localStorage.getItem('userRole');
+    console.log('🔧 No token found, checking userRole:', userRole);
+    
+    if (userRole && (userRole === 'teacher' || userRole === 'student')) {
+      // Auto-set development token
+      const mockToken = 'mock-jwt-token-for-development';
+      localStorage.setItem('token', mockToken);
+      headers['Authorization'] = `Bearer ${mockToken}`;
+      console.log('✅ Auto-set development token for role:', userRole);
+      token = mockToken;
+    } else {
+      console.log('❌ No token and no userRole found, relying on HTTP-only cookies');
+    }
   }
   
+  console.log('🔍 Final headers:', headers);
   return headers;
 };
 
 // API request wrapper with error handling and cross-origin support
 export const apiRequest = async (endpoint, options = {}) => {
   const url = getApiUrl(endpoint);
+  
+  // Debug: Log the token status before making the request
+  console.log('🔍 apiRequest DEBUG - Before getAuthHeaders():');
+  console.log('  - endpoint:', endpoint);
+  console.log('  - localStorage token:', localStorage.getItem('token'));
+  console.log('  - localStorage userRole:', localStorage.getItem('userRole'));
+  
   const config = {
-    headers: getAuthHeaders(),
     credentials: 'include', // Include cookies in all requests
-    ...options
+    ...options,
+    headers: {
+      ...getAuthHeaders(),
+      ...(options.headers || {})
+    }
   };
 
   // For cross-origin requests, also try with CORS headers
@@ -132,6 +160,7 @@ export const apiRequest = async (endpoint, options = {}) => {
   }
 
   console.log('API Request:', { url, method: config.method || 'GET', hasToken: !!localStorage.getItem('token') });
+  console.log('🔍 Final config headers:', config.headers);
 
   try {
     // Create a timeout promise

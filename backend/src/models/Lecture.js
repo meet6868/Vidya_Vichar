@@ -38,6 +38,14 @@ const LectureSchema = new mongoose.Schema({
   teacher_id: {
     type: String,
     required: true
+  },
+  is_teacher_ended: {
+    type: Boolean,
+    default: false
+  },
+  teacher_ended_at: {
+    type: Date,
+    default: null
   }
 });
 

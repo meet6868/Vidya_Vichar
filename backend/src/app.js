@@ -24,6 +24,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+// Debug middleware to log all requests
+app.use((req, res, next) => {
+  console.log(`🔍 ${req.method} ${req.path}`);
+  console.log('🔍 Headers:', JSON.stringify(req.headers, null, 2));
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('🔍 Body:', JSON.stringify(req.body, null, 2));
+  }
+  next();
+});
+
 // Routes
 app.get('/', (req, res) => {
   res.json({ 

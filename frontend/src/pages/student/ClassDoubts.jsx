@@ -1,7 +1,77 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../config/api';
 
-const ClassDoubts = ({ userData, selectedLecture, onBack }) => {
+// Question Form Component - moved outside to prevent recreation on each render
+const QuestionForm = ({ 
+  questionText, 
+  setQuestionText, 
+  handleSubmitQuestion, 
+  submittingQuestion, 
+  setShowQuestionForm 
+}) => (
+  <div className="bg-gradient-to-r from-slate-50 to-indigo-50 border border-slate-200 rounded-xl p-6 mb-6">
+    <div className="flex items-center gap-3 mb-4">
+      <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd"/>
+        </svg>
+      </div>
+      <h3 className="text-lg font-semibold text-slate-800">Ask a Question</h3>
+    </div>
+    <form onSubmit={handleSubmitQuestion}>
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-slate-700 mb-2">
+          Your Question *
+        </label>
+        <textarea
+          required
+          rows="4"
+          value={questionText}
+          onChange={(e) => setQuestionText(e.target.value)}
+          className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white transition-colors resize-none"
+          placeholder="What would you like to ask about this lecture? Be specific and clear..."
+        />
+        <p className="text-xs text-slate-500 mt-1">
+          {questionText.length}/500 characters
+        </p>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <button
+          type="submit"
+          disabled={submittingQuestion || !questionText.trim() || questionText.length > 500}
+          className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {submittingQuestion ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Submitting...
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+              Submit Question
+            </>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setQuestionText('');
+            setShowQuestionForm(false);
+          }}
+          className="px-6 py-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+);
+
+const ClassDoubts = ({ lectureId, token, onBack }) => {
   const [activeTab, setActiveTab] = useState('all');
   const [allQuestions, setAllQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,16 +84,16 @@ const ClassDoubts = ({ userData, selectedLecture, onBack }) => {
   const [submittingQuestion, setSubmittingQuestion] = useState(false);
 
   useEffect(() => {
-    if (selectedLecture && userData?.id) {
+    if (lectureId) {
       fetchLectureInfo();
       fetchQuestions();
     }
-  }, [selectedLecture, userData]);
+  }, [lectureId]);
 
   const fetchLectureInfo = async () => {
     try {
       // Get course information from the lecture
-      const courseResponse = await api.student.getCourseInfo(selectedLecture.course_id);
+      const courseResponse = await api.student.getCourseInfo(lectureId.course_id);
       if (courseResponse.success) {
         setCourseInfo(courseResponse.data);
       }
@@ -37,7 +107,8 @@ const ClassDoubts = ({ userData, selectedLecture, onBack }) => {
       setLoading(true);
       setError(null);
       
-      const response = await api.student.getLectureQuestions(selectedLecture._id);
+      const response = await api.student.getLectureQuestions(lectureId);
+
       
       if (response.success && response.data?.questions) {
         setAllQuestions(response.data.questions);
@@ -63,10 +134,7 @@ const ClassDoubts = ({ userData, selectedLecture, onBack }) => {
     try {
       setSubmittingQuestion(true);
       
-      const response = await api.student.askQuestion({
-        question_text: questionText,
-        lecture_id: selectedLecture._id
-      });
+      const response = await api.student.askQuestion(questionText, lectureId);
       
       if (response.success) {
         // Reset form
@@ -195,70 +263,6 @@ const ClassDoubts = ({ userData, selectedLecture, onBack }) => {
     </div>
   );
 
-  // Question Form Component
-  const QuestionForm = () => (
-    <div className="bg-gradient-to-r from-slate-50 to-indigo-50 border border-slate-200 rounded-xl p-6 mb-6">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM7 9H5v2h2V9zm8 0h-2v2h2V9zM9 9h2v2H9V9z" clipRule="evenodd"/>
-          </svg>
-        </div>
-        <h3 className="text-lg font-semibold text-slate-800">Ask a Question</h3>
-      </div>
-      <form onSubmit={handleSubmitQuestion}>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Your Question *
-          </label>
-          <textarea
-            required
-            rows="4"
-            value={questionText}
-            onChange={(e) => setQuestionText(e.target.value)}
-            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white transition-colors resize-none"
-            placeholder="What would you like to ask about this lecture? Be specific and clear..."
-          />
-          <p className="text-xs text-slate-500 mt-1">
-            {questionText.length}/500 characters
-          </p>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <button
-            type="submit"
-            disabled={submittingQuestion || !questionText.trim() || questionText.length > 500}
-            className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submittingQuestion ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                Submitting...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-                Submit Question
-              </>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setQuestionText('');
-              setShowQuestionForm(false);
-            }}
-            className="px-6 py-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-
   if (loading) {
     return (
       <div className="space-y-6">
@@ -368,7 +372,7 @@ const ClassDoubts = ({ userData, selectedLecture, onBack }) => {
               </svg>
               <span className="font-medium text-slate-700">Course</span>
             </div>
-            <p className="text-lg font-semibold text-slate-800">{selectedLecture.course_id}</p>
+            <p className="text-lg font-semibold text-slate-800">{lectureId.course_id}</p>
             <p className="text-slate-600 text-sm">{courseInfo?.course_name || 'Course Name'}</p>
           </div>
           <div className="bg-white rounded-lg p-4 border border-indigo-100">
@@ -378,8 +382,8 @@ const ClassDoubts = ({ userData, selectedLecture, onBack }) => {
               </svg>
               <span className="font-medium text-slate-700">Lecture</span>
             </div>
-            <p className="text-lg font-semibold text-slate-800">Lecture {selectedLecture.lec_num}</p>
-            {selectedLecture.topic && <p className="text-slate-600 text-sm">{selectedLecture.topic}</p>}
+            <p className="text-lg font-semibold text-slate-800">Lecture {lectureId.lec_num}</p>
+            {lectureId.topic && <p className="text-slate-600 text-sm">{lectureId.topic}</p>}
           </div>
           <div className="bg-white rounded-lg p-4 border border-indigo-100">
             <div className="flex items-center gap-2 mb-2">
@@ -388,12 +392,12 @@ const ClassDoubts = ({ userData, selectedLecture, onBack }) => {
               </svg>
               <span className="font-medium text-slate-700">Schedule</span>
             </div>
-            <p className="text-lg font-semibold text-slate-800">{new Date(selectedLecture.class_start).toLocaleDateString()}</p>
+            <p className="text-lg font-semibold text-slate-800">{new Date(lectureId.class_start).toLocaleDateString()}</p>
             <p className="text-slate-600 text-sm">
-              {new Date(selectedLecture.class_start).toLocaleTimeString('en-US', { 
+              {new Date(lectureId.class_start).toLocaleTimeString('en-US', { 
                 hour: '2-digit', 
                 minute: '2-digit' 
-              })} - {new Date(selectedLecture.class_end).toLocaleTimeString('en-US', { 
+              })} - {new Date(lectureId.class_end).toLocaleTimeString('en-US', { 
                 hour: '2-digit', 
                 minute: '2-digit' 
               })}
@@ -403,7 +407,15 @@ const ClassDoubts = ({ userData, selectedLecture, onBack }) => {
       </div>
 
       {/* Question Form */}
-      {showQuestionForm && <QuestionForm />}
+      {showQuestionForm && (
+        <QuestionForm 
+          questionText={questionText}
+          setQuestionText={setQuestionText}
+          handleSubmitQuestion={handleSubmitQuestion}
+          submittingQuestion={submittingQuestion}
+          setShowQuestionForm={setShowQuestionForm}
+        />
+      )}
 
       {/* Tab Navigation */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-4">

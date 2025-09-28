@@ -106,13 +106,13 @@ const studentController = {
           }
         }
 
-        // Get TAs (from course.TA field - TAs assigned by teacher during course creation)
+        // Get TAs (students in student_list with is_TA field set)
         let TAs = [];
-        if (Array.isArray(course.TA) && course.TA.length > 0) {
-          // course.TA contains student IDs, find the actual student documents
+        if (Array.isArray(course.student_list) && course.student_list.length > 0) {
           TAs = await Student.find({ 
-            student_id: { $in: course.TA }
-          }, 'name roll_no student_id');
+            _id: { $in: course.student_list }, 
+            is_TA: { $exists: true, $ne: null, $ne: '' }
+          }, 'name roll_no');
         }
 
         return {
@@ -192,11 +192,12 @@ const studentController = {
 
           // Get TAs with better error handling
           let TAs = [];
-          if (Array.isArray(course.TA) && course.TA.length > 0) {
+          if (Array.isArray(course.student_list) && course.student_list.length > 0) {
             try {
               TAs = await Student.find({ 
-                student_id: { $in: course.TA }
-              }, 'name roll_no student_id');
+                _id: { $in: course.student_list }, 
+                is_TA: { $exists: true, $ne: null, $ne: '' }
+              }, 'name roll_no');
             } catch (taError) {
               // Silently handle TA lookup errors
               TAs = [];
@@ -631,6 +632,9 @@ const studentController = {
   // Ask a doubt/question
   askQuestion: async (req, res) => {
     try {
+      console.log('🔍 askQuestion: Request body:', req.body);
+      console.log('🔍 askQuestion: User:', req.user);
+      
       const { 
         question_text, 
         lecture_id, 
@@ -639,8 +643,29 @@ const studentController = {
       } = req.body;
       const studentId = req.user.id;
 
-      // Generate a unique question_id (could use a UUID or a timestamp+studentId+lectureId)
-      const question_id = `${lecture_id}_${studentId}_${Date.now()}`;
+      // Validate required fields
+      if (!question_text || !lecture_id) {
+        return res.status(400).json({
+          success: false,
+          message: 'Question text and lecture ID are required'
+        });
+      }
+
+      if (!studentId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Student not authenticated'
+        });
+      }
+
+      console.log('🔍 askQuestion: Creating question with data:', {
+        question_text,
+        lecture_id,
+        studentId
+      });
+
+      // Generate a unique question_id
+      const question_id = `Q_${lecture_id}_${studentId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const timestamp = new Date();
 
       const newQuestion = new Question({
@@ -658,25 +683,43 @@ const studentController = {
         resource_context: resource_context || null // Additional context about resource relation
       });
 
-      await newQuestion.save();
+      console.log('🔍 askQuestion: Attempting to save question...');
+      const savedQuestion = await newQuestion.save();
+      console.log('🔍 askQuestion: Question saved successfully:', savedQuestion._id);
 
-      // Populate the referenced resources for the response
-      const populatedQuestion = await Question.findOne({ question_id })
-        .populate('referenced_resources', 'resource_id title resource_type topic')
-        .lean();
+      // Update lecture's query_id array to include this question
+      try {
+        await Lecture.findOneAndUpdate(
+          { lecture_id: lecture_id },
+          { $addToSet: { query_id: question_id } },
+          { new: true }
+        );
+        console.log('🔍 askQuestion: Updated lecture query_id array with new question:', question_id);
+      } catch (lectureUpdateError) {
+        console.warn('⚠️ askQuestion: Failed to update lecture query_id:', lectureUpdateError.message);
+        // Don't fail the request if lecture update fails
+      }
 
       res.status(201).json({
         success: true,
         message: 'Question asked successfully',
         data: {
-          question: populatedQuestion
+          question: savedQuestion
         }
       });
     } catch (error) {
+      console.error('❌ askQuestion: Error occurred:', error);
+      console.error('❌ askQuestion: Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+      
       res.status(500).json({
         success: false,
         message: 'Server error',
-        error: error.message
+        error: error.message,
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }
   },
@@ -956,14 +999,34 @@ const studentController = {
         });
       }
 
-      // Verify lecture exists and get course info
-      const lecture = await Lecture.findById(lectureId);
+      console.log('🔍 getLectureQuestions: lectureId received:', lectureId);
+
+      // Try to find lecture by both _id (ObjectId) and lecture_id (string)
+      let lecture;
+      try {
+        // First try as MongoDB ObjectId
+        lecture = await Lecture.findById(lectureId);
+      } catch (error) {
+        console.log('🔍 Not a valid ObjectId, trying as lecture_id string');
+      }
+      
+      // If not found by ObjectId, try by lecture_id string
+      if (!lecture) {
+        lecture = await Lecture.findOne({ lecture_id: lectureId });
+      }
+
       if (!lecture) {
         return res.status(404).json({
           success: false,
           message: 'Lecture not found'
         });
       }
+
+      console.log('🔍 Found lecture:', {
+        _id: lecture._id,
+        lecture_id: lecture.lecture_id,
+        course_id: lecture.course_id
+      });
 
       // Check if student is enrolled in the course
       const course = await Course.findOne({ 
@@ -977,27 +1040,44 @@ const studentController = {
         });
       }
 
-      // Get questions for this lecture
-      const questions = await Question.find({ lecture_id: lecture.lecture_id })
+      // Get questions for this lecture using the MongoDB _id (since questions store lecture ObjectId)
+      const questions = await Question.find({ lecture_id: lecture._id.toString() })
         .populate('answer')
         .sort({ timestamp: -1 });
 
-      // Format questions with mock student names for privacy
-      const mockStudentNames = ['Alice Johnson', 'Bob Smith', 'Charlie Davis', 'Diana Wilson', 'Emma Brown', 'Frank Miller'];
+      console.log('🔍 Found questions count:', questions.length);
+
+      // Get unique student IDs to fetch student names
+      const studentIds = [...new Set(questions.map(q => q.student_id))];
+      const students = await Student.find({ _id: { $in: studentIds } }).select('name username');
       
-      const formattedQuestions = questions.map((question, index) => {
-        const randomName = mockStudentNames[index % mockStudentNames.length];
+      // Create a map of student ID to student info for quick lookup
+      const studentMap = {};
+      students.forEach(student => {
+        studentMap[student._id.toString()] = {
+          name: student.name,
+          username: student.username
+        };
+      });
+      
+      const formattedQuestions = questions.map((question) => {
         const hasAnswer = question.answer && question.answer.length > 0;
+        const studentInfo = studentMap[question.student_id] || { name: 'Unknown Student', username: 'unknown' };
         
         return {
           _id: question._id,
           question_id: question.question_id,
           question_text: question.question_text,
-          student_name: randomName,
+          content: question.question_text, // Frontend expects 'content'
+          studentName: studentInfo.name, // Frontend expects 'studentName'
+          student_name: studentInfo.name, // Keep original for compatibility
           timestamp: question.timestamp,
+          createdAt: question.timestamp, // Frontend expects 'createdAt'
           is_answered: question.is_answered,
+          status: question.is_answered ? 'answered' : 'pending', // Frontend expects 'status' string
           upvotes: question.upvotes || 0,
-          answer: hasAnswer ? question.answer[0].answer : null
+          answer: hasAnswer ? question.answer[0].answer : null,
+          answeredAt: hasAnswer ? question.answer[0].timestamp : null
         };
       });
 

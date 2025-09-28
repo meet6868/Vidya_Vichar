@@ -18,8 +18,7 @@ const QuestionSchema = new mongoose.Schema({
   },
   lecture_id: {
     type: String,
-    required: true,
-    unique:true
+    required: true
   },
   timestamp: {
     type: Date,

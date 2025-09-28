@@ -170,6 +170,42 @@ exports.authenticate = (roles = []) => {
       return res.status(401).json({ message: 'No token provided.' });
     }
     const token = authHeader.split(' ')[1];
+    
+    // Development bypass for mock token
+    if (token === 'mock-jwt-token-for-development') {
+      console.log('🔍 Using development auth bypass');
+      
+      // Determine role based on what's required - default to student, but use teacher if teacher role is required
+      let mockRole = 'student';
+      let mockUser = {
+        id: '68d95376c7409d387e40ce00', // MongoDB ObjectId for existing student with questions
+        role: 'student',
+        name: 'John Doe',
+        username: 'john.doe@university.edu'
+      };
+      
+      // If teacher role is required, provide teacher mock user
+      if (roles.length && roles.includes('teacher') && !roles.includes('student')) {
+        mockRole = 'teacher';
+        mockUser = {
+          id: '68d94afde4e2052d71609c6d',  // MongoDB ObjectId for the teacher record
+          role: 'teacher',
+          name: 'Dr. Test Teacher',
+          username: 'test.teacher@university.edu',
+          teacher_id: 'TEST_TEACHER_001'
+        };
+      }
+      
+      req.user = mockUser;
+      
+      // Check if role is allowed
+      if (roles.length && !roles.includes(mockRole)) {
+        return res.status(403).json({ message: 'Forbidden: Insufficient role.' });
+      }
+      
+      return next();
+    }
+    
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
       if (roles.length && !roles.includes(decoded.role)) {

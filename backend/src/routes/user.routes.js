@@ -42,6 +42,10 @@ router.get('/teacher/course/:course_id/students', authenticate(['teacher']), tea
 router.get('/teacher/course/:course_id/student/:student_id', authenticate(['teacher']), teacherController.getStudentById);
 router.get('/teacher/lecture/:lecture_id/questions', authenticate(['teacher']), teacherController.getAllQuestions);
 router.get('/teacher/question/:question_id/answers', authenticate(['teacher']), teacherController.getAllAnswers);
+router.get('/teacher/completed-lectures', authenticate(['teacher']), teacherController.getCompletedLectures);
+router.get('/teacher/course/:course_id/completed-lectures', authenticate(['teacher']), teacherController.getCourseCompletedLectures);
+router.get('/teacher/live-classes', authenticate(['teacher']), teacherController.getLiveClasses);
+router.post('/teacher/live-classes', authenticate(['teacher']), teacherController.getLiveClasses);
 //PUT
 router.put('/teacher/dashboard/profile', authenticate(['teacher']), teacherController.updateTeacherProfile);
 //POST
@@ -52,6 +56,7 @@ router.post('/teacher/course-request/:requestId/:action', authenticate(['teacher
 router.post('/teacher/question/answer', authenticate(['teacher']), teacherController.answerQuestion);
 router.post('/teacher/course/accept-requests', authenticate(['teacher']), teacherController.acceptPendingRequests);
 router.post('/teacher/course/reject-requests', authenticate(['teacher']), teacherController.rejectPendingRequests);
+router.post('/teacher/lecture/end', authenticate(['teacher']), teacherController.endLecture);
 //DELETE
 router.delete('/teacher/course/:course_id/remove-student', authenticate(['teacher']), teacherController.removeStudentFromCourse);
 router.delete('/teacher/lecture/:lecture_id', authenticate(['teacher']), teacherController.deleteLecture);
