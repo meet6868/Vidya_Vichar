@@ -13,25 +13,16 @@ const TeacherSchema = new mongoose.Schema({
     unique: true,
     match: [/^\S+@\S+\.\S+$/, 'Please use a valid email address.']
   },
-<<<<<<< HEAD
-  name:{
-    type: String,
-    required: true,
-    unique: true,
-  },
-=======
   name: {
-		type: String,
-		required: true
-	},
->>>>>>> meet_side
+    type: String,
+    required: true
+  },
   password: {
     type: String,
     required: true
   },
   courses_id: [{
-    type: String,
-    unique: true
+    type: String
   }]
 });
 

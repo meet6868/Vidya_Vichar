@@ -1,9 +1,6 @@
-<<<<<<< HEAD
-=======
 
 
 
->>>>>>> side
 // Student Controller for handling student-specific operations
 const Student = require('../models/Students');
 const Course = require('../models/Courses');
