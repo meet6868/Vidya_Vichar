@@ -107,7 +107,7 @@ const ClassDoubts = ({ lectureId, token, onBack }) => {
       setLoading(true);
       setError(null);
       
-      const response = await api.student.getLectureQuestions(lectureId);
+      const response = await api.student.getLectureQuestions(lectureId._id);
 
       
       if (response.success && response.data?.questions) {
@@ -134,7 +134,7 @@ const ClassDoubts = ({ lectureId, token, onBack }) => {
     try {
       setSubmittingQuestion(true);
       
-      const response = await api.student.askQuestion(questionText, lectureId);
+      const response = await api.student.askQuestion(questionText, lectureId._id);
       
       if (response.success) {
         // Reset form

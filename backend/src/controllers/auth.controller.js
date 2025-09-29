@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const Student = require('../models/Students');
 const Teacher = require('../models/Teachers');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret_key_here';
 
 
 // Get available batch options

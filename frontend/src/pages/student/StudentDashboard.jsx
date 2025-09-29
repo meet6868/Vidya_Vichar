@@ -254,8 +254,7 @@ const StudentDashboard = () => {
           case 'doubts':
             return (
               <ClassDoubts 
-                userData={userData}
-                selectedLecture={selectedClassLecture}
+                lectureId={selectedClassLecture}
                 onBack={handleBackToJoinClass}
               />
             );

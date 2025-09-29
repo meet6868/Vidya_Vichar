@@ -1076,7 +1076,15 @@ const studentController = {
           is_answered: question.is_answered,
           status: question.is_answered ? 'answered' : 'pending', // Frontend expects 'status' string
           upvotes: question.upvotes || 0,
-          answer: hasAnswer ? question.answer[0].answer : null,
+          // Return all answers, not just the first one
+          answer: hasAnswer ? question.answer[0].answer : null, // Keep for backward compatibility
+          answers: hasAnswer ? question.answer.map(ans => ({
+            answer_id: ans._id,
+            answer: ans.answer,
+            answer_type: ans.answer_type || 'text',
+            answerer_name: ans.answerer_name || 'Teacher',
+            timestamp: ans.timestamp
+          })) : [],
           answeredAt: hasAnswer ? question.answer[0].timestamp : null
         };
       });
