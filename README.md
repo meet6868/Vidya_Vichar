@@ -7,11 +7,15 @@
 ![MongoDB](https://img.shields.io/badge/MongoDB-Latest-green)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
+
 ## 🎓 Project Overview
 
 **Vidya Vichar** is a comprehensive educational Q&A platform designed to facilitate seamless interaction between students and teachers in an academic environment. The platform enables students to ask questions during live classes, access course materials, and receive detailed answers from instructors, while providing teachers with powerful tools to manage courses, conduct live sessions, and track student engagement.
 
 ### 🏷️ Tagline: "Learn. Ask. Grow."
+
+
+[github](https://github.com/PranjalSK03/Vidya_Vichar_group5.git)
 
 ---
 
