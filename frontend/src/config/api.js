@@ -2,13 +2,8 @@
 const API_CONFIG = {
   // Base URL for all API calls
   BASE_URL: process.env.NODE_ENV === 'production' 
-<<<<<<< HEAD
     ? (import.meta.env.VITE_PRODUCTION_API_URL || 'https://vidya-vichar.onrender.com/api')  // Production API URL from env
     : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'),                    // Development API URL from env
-=======
-    ? (import.meta.env.VITE_PRODUCTION_API_URL || 'https://your-production-domain.com/api')  // Production API URL from env
-    : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'),                     // Development API URL - using localhost
->>>>>>> upstream/final_main
   
   // API Endpoints
   ENDPOINTS: {
