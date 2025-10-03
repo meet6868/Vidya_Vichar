@@ -24,27 +24,25 @@ const StudentRegister = () => {
       try {
         setIsLoadingOptions(true);
         
+        console.log('=== FETCHING REGISTRATION OPTIONS ===');
+        
         // Fetch batch options using API helper
-        const batchData = await api.student.getBatchOptions();
-        setBatchOptions(batchData.options || []); // Changed from 'data' to 'options'
+        const batchData = await api.auth.getBatchOptions();
+        console.log('Batch options response:', batchData);
+        setBatchOptions(batchData.options || []); 
 
         // Fetch branch options using API helper
-        const branchData = await api.student.getBranchOptions();
-        setBranchOptions(branchData.options || []); // Changed from 'data' to 'options'
-  
+        const branchData = await api.auth.getBranchOptions();
+        console.log('Branch options response:', branchData);
+        setBranchOptions(branchData.options || []);
+        
+        console.log('✅ Options loaded successfully');
         
       } catch (error) {
-        console.error('Error fetching options:', error);
+        console.error('❌ Error fetching options:', error);
         // Fallback to default options if API fails
-        setBatchOptions(['2021-2025', '2022-2026', '2023-2027', '2024-2028', '2025-2029']);
-        setBranchOptions([
-          'Computer Science Engineering',
-          'Information Technology', 
-          'Electronics & Communication',
-          'Mechanical Engineering',
-          'Civil Engineering',
-          'Electrical Engineering'
-        ]);
+        setBatchOptions(['M.Tech', 'B.Tech', 'PHD', 'MS']);
+        setBranchOptions(['CSE', 'ECE']);
       } finally {
         setIsLoadingOptions(false);
       }
@@ -90,6 +88,16 @@ const StudentRegister = () => {
     setIsLoading(true);
     
     try {
+      console.log('=== STUDENT REGISTRATION ATTEMPT ===');
+      console.log('Registration data:', {
+        name: formData.name,
+        username: formData.username,
+        roll_no: formData.rollno,
+        batch: formData.batch,
+        branch: formData.branch,
+        hasPassword: !!formData.password
+      });
+      
       const data = await api.auth.studentRegister({
         name: formData.name,
         username: formData.username, // email
@@ -99,25 +107,25 @@ const StudentRegister = () => {
         password: formData.password
       });
 
+      console.log('Registration response:', data);
+
       if (data.success) {
-        // Store token and user data if available
-        if (data.token) {
-          localStorage.setItem('token', data.token);
-        }
-        if (data.user) {
-          localStorage.setItem('userData', JSON.stringify(data.user));
-        }
-        localStorage.setItem('userRole', 'student');
+        console.log('✅ Registration successful:', data.message);
         
-        // Show success message
-        console.log('Registration successful:', data.message);
-        
-        // Redirect to student dashboard
-        navigate('/student/login');
+        // Don't automatically log in after registration
+        // Instead, redirect to login page
+        navigate('/student/login', { 
+          state: { 
+            message: 'Registration successful! Please login with your credentials.',
+            username: formData.username 
+          }
+        });
       } else {
+        console.error('❌ Registration failed:', data.message);
         setErrors([data.message || 'Registration failed']);
       }
     } catch (error) {
+      console.error('❌ Registration error:', error.message);
       setErrors([error.message || 'Network error. Please try again.']);
     } finally {
       setIsLoading(false);

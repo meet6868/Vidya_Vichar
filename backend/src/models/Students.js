@@ -22,8 +22,8 @@ const StudentSchema = new mongoose.Schema({
 		unique: true
 	},
 	is_TA: {
-		type: Boolean,
-		default: false
+		type: String,
+		
 	},
     courses_id_request: {
 		type: [String],
@@ -35,7 +35,7 @@ const StudentSchema = new mongoose.Schema({
 	},
 	batch: {
 		type: String,
-		enum: ['M.Tech', 'B.Tech', 'PhD', 'MS'],
+		enum: ['M.Tech', 'B.Tech', 'PHD', 'MS'],
 		required: true
 	},
 	branch: {

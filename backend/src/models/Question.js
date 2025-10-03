@@ -10,18 +10,15 @@ const QuestionSchema = new mongoose.Schema({
   },
   question_text: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   student_id: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   lecture_id: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   timestamp: {
     type: Date,
@@ -40,13 +37,19 @@ const QuestionSchema = new mongoose.Schema({
     default: 0
   },
   upvoted_by: [{
-    type: String,
-    unique: true
+    type: String
   }],
   answer: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Answer'
-  }]
+  }],
+  referenced_resources: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Resource'
+  }],
+  resource_context: {
+    type: String // Additional context about how the question relates to resources
+  }
 });
 
 module.exports = mongoose.model('Question', QuestionSchema);

@@ -7,10 +7,14 @@ const LectureSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  lecture_title:{
+    type: String,
+    required: true
+
+  },
   course_id: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   class_start: {
     type: Date,
@@ -24,17 +28,24 @@ const LectureSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+
   query_id: [{
-    type: String,
-    unique: true
+    type: String
   }],
   joined_students: [{
-    type: String,
-    unique: true
+    type: String
   }],
   teacher_id: {
     type: String,
     required: true
+  },
+  is_teacher_ended: {
+    type: Boolean,
+    default: false
+  },
+  teacher_ended_at: {
+    type: Date,
+    default: null
   }
 });
 

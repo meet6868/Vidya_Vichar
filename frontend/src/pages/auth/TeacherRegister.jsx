@@ -48,6 +48,14 @@ const TeacherRegister = () => {
     setIsLoading(true);
     
     try {
+      console.log('=== TEACHER REGISTRATION ATTEMPT ===');
+      console.log('Registration data:', {
+        name: formData.name,
+        username: formData.username,
+        teacher_id: formData.teacherId,
+        hasPassword: !!formData.password
+      });
+      
       const data = await api.auth.teacherRegister({
         name: formData.name,
         username: formData.username, // using username as email
@@ -55,24 +63,25 @@ const TeacherRegister = () => {
         password: formData.password
       });
 
+      console.log('Teacher registration response:', data);
+
       if (data.success) {
-        if (data.token) {
-          localStorage.setItem('token', data.token);
-        }
-        if (data.user) {
-          localStorage.setItem('userData', JSON.stringify(data.user));
-        }
-        localStorage.setItem('userRole', 'student');
+        console.log('✅ Teacher registration successful:', data.message);
         
-        // Show success message
-        console.log('Registration successful:', data.message);
-        
-        // Redirect to student dashboard
-        navigate('/teacher/login');
+        // Don't automatically log in after registration
+        // Instead, redirect to login page
+        navigate('/teacher/login', { 
+          state: { 
+            message: 'Registration successful! Please login with your credentials.',
+            username: formData.username 
+          }
+        });
       } else {
-        setErrors([data.message]);
+        console.error('❌ Teacher registration failed:', data.message);
+        setErrors([data.message || 'Registration failed']);
       }
     } catch (error) {
+      console.error('❌ Teacher registration error:', error.message);
       setErrors([error.message || 'Network error. Please try again.']);
     } finally {
       setIsLoading(false);
