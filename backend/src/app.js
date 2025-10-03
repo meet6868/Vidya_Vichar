@@ -15,10 +15,11 @@ connectDB();
 
 // Middleware
 const corsOptions = {
-  origin: true,
+  origin: 'https://vidya-vichar-2.onrender.com',
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
 };
+
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
