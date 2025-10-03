@@ -15,7 +15,8 @@ connectDB();
 
 
 const corsOptions = {
-  origin: 'https://vidya-vichar-site.onrender.com', // match exactly the frontend URL
+  // origin: 'https://vidya-vichar-site.onrender.com', // match exactly the frontend URL
+  origin: "*",
   credentials: true,
   optionsSuccessStatus: 200,
 };
