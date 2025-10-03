@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../config/api';
-import ResourceSelector from './ResourceSelector.jsx';
+import QuestionForm from '../../components/QuestionForm.jsx';
 
 const LectureDoubts = ({ userData, selectedLecture, selectedCourse, onBack }) => {
   const [activeTab, setActiveTab] = useState('all');
@@ -27,29 +27,12 @@ const LectureDoubts = ({ userData, selectedLecture, selectedCourse, onBack }) =>
     }
   };
 
-  // Helper function to get resource type icon
-  const getResourceTypeIcon = (type) => {
-    const icons = {
-      'pdf': '📄',
-      'video': '🎥',
-      'image': '🖼️',
-      'document': '📃',
-      'link': '🔗',
-      'file': '📎'
-    };
-    return icons[type] || '📎';
-  };
-
   const handleViewDetails = (doubt) => {
     setSelectedQuestionForDetails(doubt);
     setShowDetailsModal(true);
   };
   
   // Ask question form state
-  const [questionText, setQuestionText] = useState('');
-  const [showResourceSelector, setShowResourceSelector] = useState(false);
-  const [selectedResources, setSelectedResources] = useState([]);
-  const [resourceContext, setResourceContext] = useState('');
   const [submittingQuestion, setSubmittingQuestion] = useState(false);
 
   useEffect(() => {
@@ -92,18 +75,10 @@ const LectureDoubts = ({ userData, selectedLecture, selectedCourse, onBack }) =>
   };
 
   const handleResourceToggle = (resourceId) => {
-    setSelectedResources(prev => 
-      prev.includes(resourceId) 
-        ? prev.filter(id => id !== resourceId)
-        : [...prev, resourceId]
-    );
+    // Resource functionality removed
   };
 
-  const handleSubmitQuestion = async (e) => {
-    e.preventDefault();
-    
-    if (!questionText.trim()) return;
-    
+  const handleQuestionSubmit = async (questionText) => {
     try {
       setSubmittingQuestion(true);
       
@@ -111,13 +86,8 @@ const LectureDoubts = ({ userData, selectedLecture, selectedCourse, onBack }) =>
       const response = await api.student.askQuestion(questionText, selectedLecture._id);
       
       if (response.success) {
-        // Reset form
-        setQuestionText('');
-        setSelectedResources([]);
-        setResourceContext('');
+        // Close form and refresh doubts list
         setShowQuestionForm(false);
-        
-        // Refresh doubts list
         fetchLectureDoubts();
       } else {
         setError(response.message || 'Failed to submit question');
@@ -194,28 +164,6 @@ const LectureDoubts = ({ userData, selectedLecture, selectedCourse, onBack }) =>
             {doubt.question_text}
           </h3>
           
-          {/* Resource References - only show if resources exist */}
-          {doubt.referenced_resources && doubt.referenced_resources.length > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-blue-600 text-sm font-medium">📎 Resources:</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {doubt.referenced_resources.map((resource, index) => (
-                  <span key={index} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                    <span>{getResourceTypeIcon(resource.resource_type)}</span>
-                    <span>{resource.title}</span>
-                  </span>
-                ))}
-              </div>
-              {doubt.resource_context && (
-                <p className="text-blue-700 text-sm mt-2 italic">
-                  {doubt.resource_context}
-                </p>
-              )}
-            </div>
-          )}
-          
           {/* Brief answer preview for backward compatibility */}
           {doubt.is_answered && doubt.answer && !doubt.answers && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-4">
@@ -260,103 +208,6 @@ const LectureDoubts = ({ userData, selectedLecture, selectedCourse, onBack }) =>
           View Details
         </button>
       </div>
-    </div>
-  );
-
-  // Question Form Component
-  const QuestionForm = () => (
-    <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 mb-6">
-      <h3 className="text-lg font-semibold text-slate-800 mb-4">Ask a Question</h3>
-      <form onSubmit={handleSubmitQuestion}>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-slate-700 mb-2">
-            Your Question *
-          </label>
-          <textarea
-            required
-            rows="4"
-            value={questionText}
-            onChange={(e) => setQuestionText(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="What would you like to ask about this lecture?"
-          />
-        </div>
-
-        {/* Resource Reference Section */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-medium text-slate-700">
-              Reference Resources (Optional)
-            </label>
-            <button
-              type="button"
-              onClick={() => setShowResourceSelector(true)}
-              className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-            >
-              + Add Resources
-            </button>
-          </div>
-          
-          {selectedResources.length > 0 && (
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3">
-              <p className="text-indigo-800 font-medium text-sm mb-2">
-                Selected Resources ({selectedResources.length})
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {selectedResources.map(resourceId => (
-                  <span key={resourceId} className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-100 text-indigo-800 text-xs rounded-full">
-                    📄 Resource {resourceId.slice(-3)}
-                    <button
-                      type="button"
-                      onClick={() => handleResourceToggle(resourceId)}
-                      className="ml-1 text-indigo-600 hover:text-indigo-800"
-                    >
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Resource Context (Optional)
-            </label>
-            <input
-              type="text"
-              value={resourceContext}
-              onChange={(e) => setResourceContext(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              placeholder="How do the referenced resources relate to your question?"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <button
-            type="submit"
-            disabled={submittingQuestion || !questionText.trim()}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submittingQuestion ? 'Submitting...' : 'Ask Question'}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setQuestionText('');
-              setSelectedResources([]);
-              setResourceContext('');
-              setShowQuestionForm(false);
-            }}
-            className="px-6 py-2 text-slate-600 hover:text-slate-800 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
     </div>
   );
 
@@ -473,7 +324,13 @@ const LectureDoubts = ({ userData, selectedLecture, selectedCourse, onBack }) =>
       </div>
 
       {/* Question Form - Show when button is clicked */}
-      {showQuestionForm && <QuestionForm />}
+      {showQuestionForm && (
+        <QuestionForm 
+          onSubmit={handleQuestionSubmit}
+          onCancel={() => setShowQuestionForm(false)}
+          submitting={submittingQuestion}
+        />
+      )}
 
       {/* Tab Navigation */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-4">
@@ -523,16 +380,6 @@ const LectureDoubts = ({ userData, selectedLecture, selectedCourse, onBack }) =>
         </div>
       )}
 
-      {/* Resource Selector Modal */}
-      {showResourceSelector && (
-        <ResourceSelector
-          courseId={selectedCourse?.course_id}
-          selectedResources={selectedResources}
-          onResourceToggle={handleResourceToggle}
-          onClose={() => setShowResourceSelector(false)}
-        />
-      )}
-
       {/* Question Details Modal */}
       {showDetailsModal && selectedQuestionForDetails && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -579,28 +426,6 @@ const LectureDoubts = ({ userData, selectedLecture, selectedCourse, onBack }) =>
                   <span>🎯 {selectedLecture?.lecture_title}</span>
                 </div>
               </div>
-
-              {/* Resource References in Modal */}
-              {selectedQuestionForDetails.referenced_resources && selectedQuestionForDetails.referenced_resources.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-blue-600 text-sm font-medium">📎 Referenced Resources:</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedQuestionForDetails.referenced_resources.map((resource, index) => (
-                      <span key={index} className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-100 text-blue-800 text-sm rounded-full">
-                        <span>{getResourceTypeIcon(resource.resource_type)}</span>
-                        <span>{resource.title}</span>
-                      </span>
-                    ))}
-                  </div>
-                  {selectedQuestionForDetails.resource_context && (
-                    <p className="text-blue-700 text-sm mt-3 italic">
-                      "{selectedQuestionForDetails.resource_context}"
-                    </p>
-                  )}
-                </div>
-              )}
 
               {/* All Answers Section */}
               <div className="mb-6">
