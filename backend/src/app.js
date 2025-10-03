@@ -15,7 +15,7 @@ connectDB();
 
 // Middleware
 const corsOptions = {
-  origin: 'https://vidya-vichar-2.onrender.com',
+  origin: 'https://vidya-vichar-Site.onrender.com',
   credentials: true,
   optionsSuccessStatus: 200,
 };
