@@ -14,15 +14,19 @@ const app = express();
 connectDB();
 
 
+const allowedOrigin = 'https://vidya-vichar-site.onrender.com'; // exact frontend URL
+
 const corsOptions = {
-  // origin: 'https://vidya-vichar-site.onrender.com', // match exactly the frontend URL
-  origin: "*",
-  credentials: true,
-  optionsSuccessStatus: 200,
+  origin: allowedOrigin,
+  credentials: true, // allow cookies
+  optionsSuccessStatus: 200
 };
 
-
+// Apply middleware
 app.use(cors(corsOptions));
+
+// Handle preflight OPTIONS requests
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
