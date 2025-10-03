@@ -13,12 +13,13 @@ const app = express();
 // Connect to database
 connectDB();
 
-// Middleware
+
 const corsOptions = {
-  origin: 'https://vidya-vichar-Site.onrender.com',
+  origin: 'https://vidya-vichar-site.onrender.com', // match exactly the frontend URL
   credentials: true,
   optionsSuccessStatus: 200,
 };
+
 
 app.use(cors(corsOptions));
 app.use(express.json());
